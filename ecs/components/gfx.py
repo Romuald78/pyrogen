@@ -22,10 +22,8 @@
 ## ============================================================
 ## IMPORTS
 ## ============================================================
-from pyrogen.src.pyrogen.ecs.arcadeRGR.spriteRGR import AnimatedSprite
+from ..arcadeRGR.spriteRGR import AnimatedSprite
 from .component import Component
-from pyrogen.src.pyrogen.ecs.tmp.utils import *
-
 
 
 ## ============================================================
@@ -224,7 +222,7 @@ class GfxAnimatedSprite(GfxOneSPrite):
         flipV          = False if "flipv" not in params else params["flipV"]
         counter        = 0 if "counter" not in params else params["counter"]
         backAndForth   = False if "backAndForth" not in params else params["backAndForth"]
-        facingDirection= arcade.FACE_RIGHT if "facingDirection" not in params else params["facingDirection"]
+        facingDirection= 0 if "facingDirection" not in params else params["facingDirection"]
         # Add first animation
         self._arcadeGfx.add_animation(animName, filePath,
                                       spriteBox[0], spriteBox[1],
@@ -246,7 +244,8 @@ class GfxAnimatedSprite(GfxOneSPrite):
                 self._arcadeGfx.scale = ratio
         # Set position
         if changePosition:
-            self._arcadeGfx.position = position
+            self._arcadeGfx.center_x = position[0]
+            self._arcadeGfx.center_y = position[1]
 
     def selectFrame(self,index):
         self._arcadeGfx.select_frame(index)

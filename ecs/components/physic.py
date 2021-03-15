@@ -6,7 +6,7 @@ import arcade
 import pymunk
 
 from .component import Component
-from ..components.script import Script
+from .script import Script
 
 
 

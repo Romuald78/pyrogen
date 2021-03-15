@@ -33,6 +33,7 @@ class Scene():
     ## -------------------------------------
     ## CONSTRUCTOR
     ## -------------------------------------
+    # BUG (?) : For the moment all the scenes MUST have the same sizes (or else what happens ??)
     def __init__(self, scnMgr, W, H, sceneName):
         self._sceneMgr     = scnMgr
         self._world        = World(self, W, H)
