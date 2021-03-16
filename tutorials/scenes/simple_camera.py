@@ -12,7 +12,7 @@ from ..components.moveCharacter import KeyboardMoveGfx
 
 
 # pyrogen Scene class
-class SimpleGfx(pyrogen.Scene):
+class SimpleCamera(pyrogen.Scene):
 
     def __init__(self, sceneMgr, sceneName):
         # Init parent class
@@ -61,11 +61,14 @@ class SimpleGfx(pyrogen.Scene):
         # Add entity to the current scene
         self.addEntity(character)
 
-
-def mainProgram(title):
-    # Create application instance
-    game = pyrogen.Launcher(960, 540, f"Pyrogen Demo : [{title}]", False)
-    # Add scene to application
-    game.addScene(SimpleGfx, title)
-    # Run application
-    game.start()
+        # ----------------------------------------------
+        # CAMERA
+        # ----------------------------------------------
+        # Create Entity
+        camera = pyrogen.Entity("Cam")
+        # Create camera
+        cam = pyrogen.Camera( (480,270), (960,540) )
+        # Add components to entities
+        camera.addComponent(cam)
+        # Add entity to the current scene
+        self.addEntity(camera)
