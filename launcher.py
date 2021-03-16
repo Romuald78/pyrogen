@@ -74,6 +74,9 @@ class Launcher(arcade.Window):
     def __init__(self, width, height, title="Pyrogen", fullScreen=False):
         # Init application window
         super().__init__(width, height, title, fullScreen)
+        # Center it for the first time and set vsync
+        self.center_window()
+        self.set_vsync(True)
 
         # Create Scene system
         self._sceneMgr = SceneSystem(self)
@@ -112,8 +115,6 @@ class Launcher(arcade.Window):
     def addScene(self, newScene, sceneName):
         self._sceneMgr.addScene(newScene(self._sceneMgr, sceneName))
     def start(self):
-        self.center_window()
-        self.set_vsync(True)
         self.setup()
         arcade.run()
 
