@@ -1,17 +1,4 @@
 
-# FEATURE : add a "priority" field for all registered Script components
-# Similar to Gfx component management, it would allow to execute
-# some scripts before the others. As there is no multi threading
-# mechanism here, that would not be very useful to force the
-# script execution order, but may be sometimes that would change the
-# game behavior a little bit ( a 1-frame difference ??)
-# I don't know if this is relevant but let's keep it in mind.
-# may be add a priority value for all other components than Gfx (?)
-# ===> in fact we ened to add a priority value for a component with an update process
-# The zIndex and visibility fields are for the "draw", and priority is for the "update"
-# to be put in the Component class , and to be handled in the different systems (Script, Gfx)
-
-
 ## ============================================================
 ## IMPORTS
 ## ============================================================

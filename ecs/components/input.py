@@ -1,28 +1,3 @@
-# FEATURE : improve the data structure to handle inputs
-# For the moment, one instance handles one event.
-# Use lists/dicts in order to make one component
-# handle multiple events ?
-# that should solve the fact that actioName parameter
-# in callbacks is not used (so does the gamepadID)
-
-# FEATURE improve mouse management
-# add fields for simple, double and triple clicks
-# In order to do that, the component needs to have a list
-# of events with : positions, timestamp, status
-# we also need fields for duration ranges (for the pressed and released states)
-
-# FEATURE improve mouse management
-# Add a field for long press without release
-# to do that, an update method must be added and must be called
-# from the world. FOr this feature, the list detailed above
-# would be useful to : check how long the current click
-# is being pressed
-
-# FEATURE handle "any button" feature for mouse or gamepad, or "any key" for keayboard
-
-# FEATURE : use modifiers for key and mouse buttons (modifers would be given by Launcher)
-
-
 
 ## ============================================================
 ## IMPORTS

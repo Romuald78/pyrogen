@@ -1,10 +1,3 @@
-# FEATURE : Merge gfx classes
-# put a single Sprite in a 1-size-spriteList
-# to be more generic ? We would only have GfxSpriteList as gfx components
-# that would be easier to handle here. let's see
-
-# FEATURE : when adding a component, check first and last Z Index entries
-# before calling the dichotomy process
 
 ## ============================================================
 ## IMPORTS
@@ -158,7 +151,6 @@ class GfxSystem():
             comp.getEntity().removeComponent(comp)
 
     def drawAllGfx(self):
-        # FEATURE : handle drawList in a clever way instead of drawing each component 1-by-1
         for cmpRef in self._visibleComps:
             ref = cmpRef.getGfx()
             ref.draw()

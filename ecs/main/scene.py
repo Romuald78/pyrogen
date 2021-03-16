@@ -1,7 +1,3 @@
-# FEATURE : set the viewport correctly according to the scene dimensions + application dimensions
-
-# FEATURE : create a console print debug function
-# so when the console debug mode is enabled, all these print function are written
 
 
 ## ============================================================
@@ -33,7 +29,6 @@ class Scene():
     ## -------------------------------------
     ## CONSTRUCTOR
     ## -------------------------------------
-    # BUG (?) : For the moment all the scenes MUST have the same sizes (or else what happens ??)
     def __init__(self, scnMgr, W, H, sceneName):
         self._sceneMgr     = scnMgr
         self._world        = World(self, W, H)
@@ -156,7 +151,6 @@ class Scene():
     ## COMPONENT NOTIFICATIONS
     ## -------------------------------------
     def notifyAddComponent(self, newCmpRef):
-        # TODO check the entity of this component is already registered here in this scene ?
         self._world.notifyAddComponent(newCmpRef)
     def notifyRemoveComponent(self, cmpRef):
         self._world.notifyRemoveComponent(cmpRef)

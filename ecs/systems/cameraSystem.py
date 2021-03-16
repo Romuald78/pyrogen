@@ -13,8 +13,6 @@ from ..components.camera import Camera
 
 class CameraSystem():
 
-    # FEATURE : add methods to improve CameraSystem
-    # e.g. : remove / getCompByName / hasComp / getNbComps / getAllComps / ...
 
     ## -------------------------------------
     ## private methods

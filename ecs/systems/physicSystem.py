@@ -79,13 +79,6 @@ class PhysicSystem():
     ## -------------------------------------
     def updatePhysicEngine(self, deltaTime, isOnPause):
 
-        # TODO handle the isEnabled field for each component
-        # What disable means (removing body from space ? or putting body as a sensor ?)
-        # May be during the enable/disable call we can modify the data instead of during
-        # the update methode right here (?)
-
-        # TODO : how to handle the enableOnPause field for physic components ??
-
         # update physic world (except if we are on pause)
         if not isOnPause:
             self._space.step(deltaTime)

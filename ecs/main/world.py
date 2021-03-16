@@ -10,7 +10,6 @@ from ..systems.scriptSystem import ScriptSystem
 from ..systems.musicSystem  import MusicSystem
 
 
-# TODO finish 'REMOVE' service with all comp refs (access to correct system)
 
 
 class World():
@@ -87,8 +86,6 @@ class World():
             self._cameraMgr.add(compRef)
 
         # TRANSFORM
-        # TODO : handle transforms in a specific system ? gfx one, with link between gfx and transform ?
-        # FEATURE : Add scale into transform ?
         elif (compType & Component.TYPE_TRANSFORM) == Component.TYPE_TRANSFORM:
             pass
 
@@ -171,7 +168,6 @@ class World():
         self._sfxMgr.updateAllMusics(deltaTime, isOnPause)
 
     def draw(self):
-        # TODO : add several light layers inside the LightSystem !!!
         with self._lightMgr.getLayer():    # code line 1
             self._gfxMgr.drawAllGfx()
             if self._scene.isDrawDebug():

@@ -7,8 +7,6 @@ import math
 from .component import Component
 
 
-# FEATURE : Add scale into transform ?
-
 
 ## ============================================================
 ## SCRIPT COMPONENT

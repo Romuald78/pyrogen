@@ -154,7 +154,6 @@ class SceneSystem():
             # draw color mask in case of transitions
             clr = self.__getTransitionColor()
             if clr != None:
-                # TODO : Get viewport instead of scene dimensions (should be the same but ...)
                 W, H = scn.getDimensions()
                 arcade.draw_rectangle_filled(W//2, H//2, W, H, clr)
             # Draw debug info on screen

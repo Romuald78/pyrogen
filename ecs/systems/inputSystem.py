@@ -1,6 +1,4 @@
 
-# FEATURE add unregister method with only Input ref as a parameter
-
 
 ## ============================================================
 ## IMPORTS

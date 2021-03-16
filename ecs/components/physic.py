@@ -14,7 +14,6 @@ from .script import Script
 ## PHYSIC COMPONENT
 ## ============================================================
 
-# TODO Handle Kinematic, Static, ...
 
 
 class Physic(Component):

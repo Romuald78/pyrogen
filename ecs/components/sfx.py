@@ -68,5 +68,3 @@ class Music(Component):
         self._player.seek(time)
 
 
-    # TODO : Full Rewind / seek / Fast Forward / Rewind
-

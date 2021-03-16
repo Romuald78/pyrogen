@@ -5,9 +5,6 @@ from .component import Component
 
 class Camera(Component):
 
-    # FEATURE : handle 3d coordinates to handle zoom with a focal field ?
-    # TODO    : For the moment keep only the 2 first coordinates
-
     def __init__(self, center, size, compName="Camera"):
         # Get parameters
         center    = list(center)
