@@ -4,13 +4,14 @@ from ..launcher import Launcher
 
 def runDemo(title):
 
+    print(f"Running '{title}'")
+
     scenes = {"SimpleGfx":{"width"     :960,
                            "height"    :540,
                            "fullScreen":False,
                            "sceneClass":SimpleGfx,
                            },
               }
-
 
     if title in scenes:
         # Create application instance

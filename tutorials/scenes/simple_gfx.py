@@ -1,15 +1,24 @@
+# Import Paul Craven's arcade package
 import arcade
-
+# Import Romuald Grignon's pyrogen package
+# (may be loaded from the "development branch" or the standard package build
+try:
+    import pyrogen.src.pyrogen as pyrogen
+except ImportError:
+    import pyrogen
+# Import pyrogen components (needed in the current scene)
 from ..components.moveCharacter import KeyboardMoveGfx
-from pyrogen.src import pyrogen
 
+
+
+# pyrogen Scene class
 class SimpleGfx(pyrogen.Scene):
 
     def __init__(self, sceneMgr, sceneName):
         # Init parent class
         super().__init__(sceneMgr, 960, 540, sceneName)
         # Set debug mode
-        self.setDebugMode(False, True, False)
+        self.setDebugMode(False, False, False)
 
     def init(self, params):
 
