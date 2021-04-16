@@ -55,11 +55,16 @@ def getGeometryShader():
             // Get texture dimensions
             vec2 texDim = textureSize(sprite_texture,0);
             
+            // Half pixel
+            vec2 halfPixel = vec2(0.0)/texDim;
+            
             // Get texture coords
-            float x0 = atlas_pos[0].x/texDim.x;
-            float y0 = atlas_pos[0].y/texDim.y;
-            float x1 = x0 + (atlas_pos[0].z/texDim.x);
-            float y1 = y0 + (atlas_pos[0].w/texDim.y);
+            vec2 pos0 = (atlas_pos[0].xy/texDim.xy);
+            vec2 pos1 = pos0 + (atlas_pos[0].zw/texDim.xy);
+            pos0 = pos0 + halfPixel;
+            pos1 = pos1 - halfPixel;
+            pos0.y = 1.0-pos0.y;
+            pos1.y = 1.0-pos1.y;
 
             // We grab the position value from the vertex shader
             vec2 center = gl_in[0].gl_Position.xy;
@@ -82,22 +87,22 @@ def getGeometryShader():
 
             // Upper left
             gl_Position = projection * vec4(rot * vec2(-hsize.x, hsize.y) + center, 0.0, 1.0);
-            uv = vec2(x0, y1);
+            uv = vec2(pos0.x, pos1.y);
             EmitVertex();
 
             // lower left
             gl_Position = projection * vec4(rot * vec2(-hsize.x, -hsize.y) + center, 0.0, 1.0);
-            uv = vec2(x0, y0);
+            uv = vec2(pos0.x, pos0.y);
             EmitVertex();
 
             // upper right
             gl_Position = projection * vec4(rot * vec2(hsize.x, hsize.y) + center, 0.0, 1.0);
-            uv = vec2(x1, y1);
+            uv = vec2(pos1.x, pos1.y);
             EmitVertex();
 
             // lower right
             gl_Position = projection * vec4(rot * vec2(hsize.x, -hsize.y) + center, 0.0, 1.0);
-            uv = vec2(x1, y0);
+            uv = vec2(pos1.x, pos0.y);
             EmitVertex();
 
             // We are done with this triangle strip now
@@ -137,6 +142,8 @@ def main():
 
     app.prepareData()
 
+    for field in app.context.info:
+        print(f"{field} : {app.context.info[field]}")
 
     PREVTIME = 0
     timer = Timer()
@@ -145,7 +152,7 @@ def main():
     while not app.window.is_closing:
         time, frame_time = timer.next_frame()
 
-        print(round(1000*(time-PREVTIME),1))
+        print(f"frameTime={round(1000*(time-PREVTIME),1)}")
         PREVTIME = time
 
         app.render(time, frame_time)
@@ -155,91 +162,6 @@ def main():
 
 
 
-
-
-
-
-
-
-
-
-def render(time: float, frametime: float):
-    # We can also check if a key is in press state here
-    if window.is_key_pressed(window.keys.SPACE):
-        print("User is holding SPACE button")
-
-def resize(width: int, height: int):
-    print("Window was resized. buffer size is {} x {}".format(width, height))
-
-def iconify(iconify: bool):
-    """Window hide/minimize and restore"""
-    print("Window was iconified:", iconify)
-
-def key_event(key, action, modifiers):
-    keys = window.keys
-
-    # Key presses
-    if action == keys.ACTION_PRESS:
-        if key == keys.SPACE:
-            print("SPACE key was pressed")
-
-        # Using modifiers (shift and ctrl)
-
-        if key == keys.Z and modifiers.shift:
-            print("Shift + Z was pressed")
-
-        if key == keys.Z and modifiers.ctrl:
-            print("ctrl + Z was pressed")
-
-    # Key releases
-    elif action == keys.ACTION_RELEASE:
-        if key == keys.SPACE:
-            print("SPACE key was released")
-
-    # Move the window around with AWSD
-    if action == keys.ACTION_PRESS:
-        if key == keys.A:
-            window.position = window.position[0] - 10, window.position[1]
-        if key == keys.D:
-            window.position = window.position[0] + 10, window.position[1]
-        if key == keys.W:
-            window.position = window.position[0], window.position[1] - 10
-        if key == keys.S:
-            window.position = window.position[0], window.position[1] + 10
-
-        # toggle cursor
-        if key == keys.C:
-            window.cursor = not window.cursor
-
-        # Shuffle window tittle
-        if key == keys.T:
-            title = list(window.title)
-            random.shuffle(title)
-            window.title = ''.join(title)
-
-        # Toggle mouse exclusivity
-        if key == keys.M:
-            window.mouse_exclusivity = not window.mouse_exclusivity
-
-def mouse_position_event(x, y, dx, dy):
-    print("Mouse position pos={} {} delta={} {}".format(x, y, dx, dy))
-
-def mouse_drag_event(x, y, dx, dy):
-    print("Mouse drag pos={} {} delta={} {}".format(x, y, dx, dy))
-
-def mouse_scroll_event(x_offset, y_offset):
-    print("mouse_scroll_event", x_offset, y_offset)
-
-def mouse_press_event(x, y, button):
-    print("Mouse button {} pressed at {}, {}".format(button, x, y))
-    print("Mouse states:", window.mouse_states)
-
-def mouse_release_event(x: int, y: int, button: int):
-    print("Mouse button {} released at {}, {}".format(button, x, y))
-    print("Mouse states:", window.mouse_states)
-
-def unicode_char_entered(char):
-    print("unicode_char_entered:", char)
 
 
 
