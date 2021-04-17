@@ -2,6 +2,7 @@ import math
 import random
 from array import array
 from pathlib import Path
+import numpy as np
 
 import moderngl
 import moderngl_window
@@ -48,6 +49,7 @@ class PyrogenApp():
     def __init__(self):
         # Create a Pyglet window
         settings.WINDOW['class'] = 'moderngl_window.context.pyglet.Window'
+
         self._window             = moderngl_window.create_window_from_settings()
         # Store a list of different programs
         # Only one can be selected at a time
@@ -146,25 +148,8 @@ class PyrogenApp():
         # Write Pyrogen Texture data (20 x 32bit values)
         # Pack values using the nb of components
         # e.g.  X,Y,W,H packed in a single RGBA value
-        # texelFecth() function to get them from GPU side
+        # texelFetch() function to get them from GPU side
         # texture.filter = moderngl.NEAREST, moderngl.NEAREST
-        #
-        # [ONCE]
-        # > Diffuse info
-        #    - channelID
-        #    - samplerID
-        #    - array Index (0 for the moment)
-        #    - RFU
-        # > Normal info
-        #    - channelID
-        #    - samplerID
-        #    - array Index
-        #    - RFU
-        # > Specular info
-        #    - channelID
-        #    - samplerID
-        #    - array Index
-        #    - RFU
         #
         # [FOR EACH TEXTURE]
         # > Diffuse data
@@ -178,17 +163,28 @@ class PyrogenApp():
         #    - (W,H) size
         nbTextures       = 2
         nbDataPerTexture = 3
-        nbDataPerHeader  = 3
+        nbDataPerHeader  = 0
         nbComponents     = 4
         width            = nbTextures*nbDataPerTexture
-        nbBytes          = width * nbComponents
+        nbTexels         = width * nbComponents
         overhead         = nbDataPerHeader * nbComponents # 3 values
-        texture = self.context.texture((width+nbDataPerHeader, 1), nbComponents, dtype="u4")
-        buffer  = self.context.buffer(reserve=nbBytes+overhead)
-
-   ### TODO !!     texture.write(buffer)
-
+        # Prepare texture
+        texture = self.context.texture((width, 1), nbComponents, dtype="u4")
         texture.filter = (moderngl.NEAREST, moderngl.NEAREST)
+
+        # Write texture positions and sizes
+        data = np.zeros(nbTexels+overhead, np.uint32)
+        data[0] = 2
+        data[1] = 2
+        data[2] = 27
+        data[3] = 27
+        data[4] = 32
+        data[5] = 32
+        data[6] = 64
+        data[7] = 64
+        texture.write(data.tobytes())
+
+        # Fill data structure
         self.openGlData["nbTextures"] = nbTextures
         self.openGlData["atlasInfo" ] = texture
 
@@ -227,7 +223,7 @@ class PyrogenApp():
         # -----------------------------------------------------------------
         # Create sprite information (input data)
         nbComponents   = 4
-        spriteInfoSize = (5+4) * nbComponents # 9 values in vertex input
+        spriteInfoSize = (5+1) * nbComponents # 6 values in vertex input
         nbMaxSprites   = 1000
         self.openGlData["spriteSize"  ] = spriteInfoSize
         self.openGlData["nbSprites"   ] = nbMaxSprites
@@ -241,7 +237,7 @@ class PyrogenApp():
         self.openGlData["vao"]        = self._window.ctx.vertex_array(
             self._program,
             [
-                (self.openGlData["spriteBuffer"], "2f 2f 1f 4f", "in_position", "in_size", "in_rotation", "in_atlas_pos"),
+                (self.openGlData["spriteBuffer"], "2f 2f 1f 1f", "in_position", "in_size", "in_rotation", "in_tex_id"),
             ]
         )
 
@@ -252,7 +248,7 @@ class PyrogenApp():
         # -----------------------------------------------------------------
         # Create projection matrix
         w, h = self._window.ctx.screen.size
-        border = 100
+        border = 0
         xMin = 0-border
         xMax = w+border
         yMin = 0-border
@@ -282,18 +278,16 @@ class PyrogenApp():
                 # Position
 #                yield width / 2 + math.sin(time + rot_step * i) * 600
 #                yield height / 2 + math.cos(time + rot_step * i) * 300
-                yield random.randint(50,width-50)
-                yield random.randint(50,height-50)
+                yield random.randint(0,width)
+                yield random.randint(0,height)
                 # size
-                yield 250
-                yield 250
+                yield 64
+                yield 64
                 # rotation
                 yield math.sin(time + i) * 100
-                # Texture position (X,Y,W,H)  (top left corner)
-                yield [32,2 ][spriteID]
-                yield [32,2 ][spriteID]
-                yield [64,27][spriteID]
-                yield [64,27][spriteID]
+                # Texture ID (from it, in the ATLAS INFO we can retrieve (X,Y,W,H)
+                yield [0,1][spriteID]
+
 
         # TODO : use numpy to improve perfs ?
         # This step is copying data from CPU side to GPU side
@@ -320,7 +314,8 @@ class PyrogenApp():
         self._program["projection"].write(self.openGlData["projMatrix"])
 
         #TODO : remove it definitely and read the atlasInfo to know from where getting textures
-        self._program["sprite_texture"] = 1
+        self._program["atlasDataID"] = [2,3,4]
+        self._program["atlasInfoID"] = 0
 
 
 
@@ -352,10 +347,10 @@ class PyrogenApp():
         # max dim 16k*16k
         # see ctx.info for info
         self.openGlData["atlasInfo"    ].use(0)
-        self.openGlData["diffuseAtlas" ].use(1)
-        self.openGlData["normalAtlas"  ].use(2)
-        self.openGlData["specularAtlas"].use(3)
-        self.openGlData["lightInfo"    ].use(4)
+        self.openGlData["lightInfo"    ].use(1)
+        self.openGlData["diffuseAtlas" ].use(2)
+        self.openGlData["normalAtlas"  ].use(3)
+        self.openGlData["specularAtlas"].use(4)
 
         # Since we have overallocated the buffer (room for 1000 sprites) we
         # need to specify how many we actually want to render passing number of vertices.

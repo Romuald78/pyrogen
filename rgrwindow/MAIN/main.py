@@ -7,62 +7,72 @@ import random
 from moderngl_window.timers.clock import Timer
 from pyrogen.src.pyrogen.rgrwindow.MAIN.pyrogen_app import PyrogenApp
 
-
-def getVertexShader():
+def getShaderHeader():
     return """
         #version 330
 
+        #define ID_TEXT_DIFFUSE   0
+        #define ID_TEXT_NORMAL    1
+        #define ID_TEXT_SPECULAR  2
+        
+    """
+
+
+def getVertexShader():
+    return """
         // The per sprite input data
         in vec2 in_position;
         in vec2 in_size;
         in float in_rotation;
-        in vec4 in_atlas_pos;
+        in float in_tex_id;
 
         out vec2 size;
         out float rotation;
-        out vec4 atlas_pos;
+        out float tex_id;
 
         void main() {
             // We just pass the values unmodified to the geometry shader
             gl_Position = vec4(in_position, 0, 1);
             size = in_size;
             rotation = in_rotation;
-            atlas_pos = in_atlas_pos;
+            tex_id = in_tex_id;
         }
     """
 
 def getGeometryShader():
     return """
-        #version 330
-
         // We are taking single points form the vertex shader
         // and emitting 4 new vertices creating a quad/sprites
         layout (points) in;
         layout (triangle_strip, max_vertices = 4) out;
 
-        uniform mat4      projection;
-        uniform sampler2D sprite_texture;
+        uniform mat4       projection;
+        uniform sampler2D  atlasDataID[3];
+        uniform usampler2D atlasInfoID;
 
         // Since geometry shader can take multiple values from a vertex
         // shader we need to define the inputs from it as arrays.
         // In our instance we just take single values (points)
-        in vec2 size[];
+        in vec2  size[];
         in float rotation[];
-        in vec4 atlas_pos[];
+        in float tex_id[];
+
         out vec2 uv;
 
         void main() {
             // Get texture dimensions
-            vec2 texDim = textureSize(sprite_texture,0);
-            
+            vec2  texDim  = textureSize(atlasDataID[ID_TEXT_DIFFUSE],0);
+            uvec4 texBox2 = texelFetch( atlasInfoID, ivec2(int(tex_id[0]),0), 0 );
+            vec4  texBox  = vec4(texBox2);
+    
             // Half pixel
             vec2 halfPixel = vec2(0.0)/texDim;
             
             // Get texture coords
-            vec2 pos0 = (atlas_pos[0].xy/texDim.xy);
-            vec2 pos1 = pos0 + (atlas_pos[0].zw/texDim.xy);
-            pos0 = pos0 + halfPixel;
-            pos1 = pos1 - halfPixel;
+            vec2 pos0 = (texBox.xy/texDim.xy);
+            vec2 pos1 = pos0 + (texBox.zw/texDim.xy);
+            pos0   = pos0 + halfPixel;
+            pos1   = pos1 - halfPixel;
             pos0.y = 1.0-pos0.y;
             pos1.y = 1.0-pos1.y;
 
@@ -112,16 +122,17 @@ def getGeometryShader():
 
 def getFragmentShader():
     return """
-        #version 330
-
-        uniform sampler2D sprite_texture;
+        uniform sampler2D  atlasDataID[3];
+        uniform usampler2D atlasInfoID;
 
         in vec2 uv;
         out vec4 fragColor;
 
         void main() {
-            fragColor = texture(sprite_texture, uv);
-            // texelFetch( ivec2(0,0), 0 );
+
+            vec4 color = texture(atlasDataID[ID_TEXT_DIFFUSE], uv);
+            fragColor = color; 
+        
         }
         """
 
@@ -136,9 +147,9 @@ def main():
     app    = PyrogenApp()
     window = app.window
     app.addProgram( "basicSprite",
-                    vertexStr   = getVertexShader(),
-                    geometryStr = getGeometryShader(),
-                    fragmentStr = getFragmentShader() )
+                    vertexStr   = getShaderHeader()+getVertexShader(),
+                    geometryStr = getShaderHeader()+getGeometryShader(),
+                    fragmentStr = getShaderHeader()+getFragmentShader() )
 
     app.prepareData()
 
@@ -152,7 +163,7 @@ def main():
     while not app.window.is_closing:
         time, frame_time = timer.next_frame()
 
-        print(f"frameTime={round(1000*(time-PREVTIME),1)}")
+        #print(f"frameTime={round(1000*(time-PREVTIME),1)}")
         PREVTIME = time
 
         app.render(time, frame_time)
