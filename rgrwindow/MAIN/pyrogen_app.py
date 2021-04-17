@@ -49,8 +49,10 @@ class PyrogenApp():
     def __init__(self):
         # Create a Pyglet window
         settings.WINDOW['class'] = 'moderngl_window.context.pyglet.Window'
-
+        settings.WINDOW['vsync'] = True
         self._window             = moderngl_window.create_window_from_settings()
+        print(self._window.ctx.info)
+
         # Store a list of different programs
         # Only one can be selected at a time
         #the selected program will be used in the prepareData method
@@ -224,7 +226,7 @@ class PyrogenApp():
         # Create sprite information (input data)
         nbComponents   = 4
         spriteInfoSize = (5+1) * nbComponents # 6 values in vertex input
-        nbMaxSprites   = 1000
+        nbMaxSprites   = 250000
         self.openGlData["spriteSize"  ] = spriteInfoSize
         self.openGlData["nbSprites"   ] = nbMaxSprites
         self.openGlData["spriteBuffer"] = self._window.ctx.buffer(reserve=nbMaxSprites * spriteInfoSize)
@@ -281,8 +283,8 @@ class PyrogenApp():
                 yield random.randint(0,width)
                 yield random.randint(0,height)
                 # size
-                yield 64
-                yield 64
+                yield 32
+                yield 32
                 # rotation
                 yield math.sin(time + i) * 100
                 # Texture ID (from it, in the ATLAS INFO we can retrieve (X,Y,W,H)
