@@ -2,7 +2,7 @@ from .default_shader import Shader
 
 class SimpleShader(Shader):
 
-    def __init__(self, name):
+    def __init__(self, name="Shader v1"):
         super().__init__(name)
 
     def _getHeader(self):
@@ -120,7 +120,6 @@ class SimpleShader(Shader):
     def getFragment(self):
         return self._getHeader() + """
             uniform sampler2D  atlasDataID[3];
-            uniform usampler2D atlasInfoID;
 
             in vec2 uv;
             out vec4 fragColor;

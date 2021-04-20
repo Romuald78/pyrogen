@@ -2,7 +2,7 @@
 
 class Shader():
 
-    def __init__(self, name="Default Shader"):
+    def __init__(self, name="NO_SHADER"):
         self._name = name
 
     @property

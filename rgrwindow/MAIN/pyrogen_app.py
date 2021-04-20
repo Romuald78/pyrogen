@@ -10,6 +10,10 @@ from moderngl_window import settings, resources
 from moderngl_window.meta import TextureDescription
 from pyrr import Matrix44
 
+from .opengl_data import OpenGLData
+
+
+
 
 class PyrogenApp():
 
@@ -60,26 +64,7 @@ class PyrogenApp():
         self._programs           = {}
 
         # structure to store all rendering information
-        #(data given to the shaders)
-        self.openGlData = {
-                            # Atlas texture
-                            "diffuseAtlas" : None,  # ALL sprite texture (sprite/diffuse)
-                            "normalAtlas"  : None,  # ALL sprite texture (normal)
-                            "specularAtlas": None,  # ALL sprite texture (specular)
-
-                            "nbTextures"   : None,  # integer
-                            "atlasInfo"    : None,  # Texture containing all texture information
-
-                            "nbLights"     : None,  # integer
-                            "lightInfo"    : None,  # Texture containing all light information
-
-                            "nbSprites"    : None,  # integer (number of vertices)
-                            "spriteSize"   : None,  # integer (data size for one vertex)
-                            "spriteBuffer" : None,  # vertex buffer
-
-                            "vao"          : None,  # Vertex array object
-                            "projMatrix"   : None,  # Projection matrix (used for camera feature)
-                          }
+        self._openGlData = OpenGLData()
 
         # Map callback functions
         self._window.key_event_func            = self.keyboardEvent
@@ -124,7 +109,7 @@ class PyrogenApp():
         if name in self._programs:
             self._program = self._programs[name]
 
-    def prepareData(self):
+    def prepareData(self, loader):
         # -----------------------------------------------------------------
         # TEXTURE ATLAS
         # TODO create texture_array with (width,height,nbLayers)
@@ -133,14 +118,14 @@ class PyrogenApp():
         myPath = Path(__file__).parent.resolve()
         resources.register_dir(myPath)
         # DIFFUSE atlas
-        texture = resources.textures.load(TextureDescription(path="atlas.png"))
-        self.openGlData["diffuseAtlas"] = texture
+        texture = resources.textures.load(TextureDescription(path=loader.getDiffuseAtlasPath()))
+        self._openGlData.set("diffuseAtlas", texture)
         # NORMAL atlas
-        texture = resources.textures.load(TextureDescription(path="atlas.png"))
-        self.openGlData["normalAtlas"] = texture
+        texture = resources.textures.load(TextureDescription(path=loader.getNormalAtlasPath()))
+        self._openGlData.set("normalAtlas", texture)
         # SPECULAR atlas
-        texture = resources.textures.load(TextureDescription(path="atlas.png"))
-        self.openGlData["specularAtlas"] = texture
+        texture = resources.textures.load(TextureDescription(path=loader.getSpecularAtlasPath()))
+        self._openGlData.set("specularAtlas", texture)
 
 
         # -----------------------------------------------------------------
@@ -163,7 +148,7 @@ class PyrogenApp():
         # > Specular Data
         #    - (X,Y) top left position
         #    - (W,H) size
-        nbTextures       = 2
+        nbTextures       = loader.getNbTextures()
         nbDataPerTexture = 3
         nbDataPerHeader  = 0
         nbComponents     = 4
@@ -176,19 +161,18 @@ class PyrogenApp():
 
         # Write texture positions and sizes
         data = np.zeros(nbTexels+overhead, np.uint32)
-        data[0] = 2
-        data[1] = 2
-        data[2] = 27
-        data[3] = 27
-        data[4] = 32
-        data[5] = 32
-        data[6] = 64
-        data[7] = 64
+        i = 0
+        allIDs = loader.getAllIds()
+        for id in allIDs:
+            data[4*id+0] = loader.getTextureById(id)["x"]
+            data[4*id+1] = loader.getTextureById(id)["y"]
+            data[4*id+2] = loader.getTextureById(id)["w"]
+            data[4*id+3] = loader.getTextureById(id)["h"]
         texture.write(data.tobytes())
 
         # Fill data structure
-        self.openGlData["nbTextures"] = nbTextures
-        self.openGlData["atlasInfo" ] = texture
+        self._openGlData.set("nbTextures", nbTextures)
+        self._openGlData.set("atlasInfo" , texture   )
 
 
         # -----------------------------------------------------------------
@@ -216,8 +200,8 @@ class PyrogenApp():
         texture = self.context.texture((nbLights*textureInfoSize + overhead, 1), nbComponents, dtype="u4")
 
         texture.filter = (moderngl.NEAREST, moderngl.NEAREST)
-        self.openGlData["nbLights"]  = nbLights
-        self.openGlData["lightInfo"] = texture
+        self._openGlData.set("nbLights" , nbLights)
+        self._openGlData.set("lightInfo", texture )
 
 
         # -----------------------------------------------------------------
@@ -226,22 +210,29 @@ class PyrogenApp():
         # Create sprite information (input data)
         nbComponents   = 4
         spriteInfoSize = (5+1) * nbComponents # 6 values in vertex input
-        nbMaxSprites   = 250000
-        self.openGlData["spriteSize"  ] = spriteInfoSize
-        self.openGlData["nbSprites"   ] = nbMaxSprites
-        self.openGlData["spriteBuffer"] = self._window.ctx.buffer(reserve=nbMaxSprites * spriteInfoSize)
+        nbMaxSprites   = 185000
+        buffer         = self._window.ctx.buffer(reserve=nbMaxSprites * spriteInfoSize)
+        self._openGlData.set("spriteSize"  , spriteInfoSize)
+        self._openGlData.set("nbSprites"   , nbMaxSprites  )
+        self._openGlData.set("spriteBuffer", buffer        )
 
 
         # -----------------------------------------------------------------
         # VERTEX ARRAY OBJECT
         # -----------------------------------------------------------------
         # Create vertex array object
-        self.openGlData["vao"]        = self._window.ctx.vertex_array(
-            self._program,
-            [
-                (self.openGlData["spriteBuffer"], "2f 2f 1f 1f", "in_position", "in_size", "in_rotation", "in_tex_id"),
-            ]
-        )
+        vertexArray = self._window.ctx.vertex_array(
+                        self._program,
+                        [
+                            (self._openGlData.get("spriteBuffer"),
+                             "2f 2f 1f 1f",
+                             "in_position",
+                             "in_size",
+                             "in_rotation",
+                             "in_tex_id"),
+                        ]
+                    )
+        self._openGlData.set("vao", vertexArray)
 
 
         # -----------------------------------------------------------------
@@ -250,51 +241,46 @@ class PyrogenApp():
         # -----------------------------------------------------------------
         # Create projection matrix
         w, h = self._window.ctx.screen.size
-        border = 0
-        xMin = 0-border
-        xMax = w+border
-        yMin = 0-border
-        yMax = h+border
+        xMin = 0
+        xMax = w
+        yMin = 0
+        yMax = h
         near = 1
         far  = 0
-        self.openGlData["projMatrix"] = Matrix44.orthogonal_projection(xMin, xMax, yMax, yMin, near, far, dtype="f4")
-
-
-
+        matrix = Matrix44.orthogonal_projection(xMin, xMax, yMax, yMin, near, far, dtype="f4")
+        self._openGlData.set("projMatrix", matrix)
 
 
         # TODO : TMP : fill the vertex buffer once at startup
         # fill static sprite information
-        self.__configSprites(0, nbMaxSprites)
+        self.__configSprites(0, nbMaxSprites, loader)
 
 
-
-    def __configSprites(self,time, num_sprites):
+    def __configSprites(self,time, num_sprites, loader):
         # Grab the size of the screen or current render target
         width, height = self._window.ctx.fbo.size
         # We just create a generator function instead of
         def gen_sprites(time):
-            rot_step = math.pi * 2 / num_sprites
             for i in range(num_sprites):
-                spriteID = random.randint(0,1)
+                allIDs = loader.getAllIds()
+                spriteID = random.choice(allIDs)
+                texture  = loader.getTextureById(spriteID)
                 # Position
-#                yield width / 2 + math.sin(time + rot_step * i) * 600
-#                yield height / 2 + math.cos(time + rot_step * i) * 300
                 yield random.randint(0,width)
                 yield random.randint(0,height)
                 # size
-                yield 32
-                yield 32
+                yield texture["w"]
+                yield texture["h"]
                 # rotation
                 yield math.sin(time + i) * 100
                 # Texture ID (from it, in the ATLAS INFO we can retrieve (X,Y,W,H)
-                yield [0,1][spriteID]
+                yield spriteID
 
 
         # TODO : use numpy to improve perfs ?
         # This step is copying data from CPU side to GPU side
         # struct/array python
-        self.openGlData["spriteBuffer"].write(array("f", gen_sprites(time)))
+        self._openGlData.get("spriteBuffer").write(array("f", gen_sprites(time)))
 
         ## calculate some offset. We truncate to intergers here.
         ## This depends what "look" you want for your game.
@@ -313,7 +299,8 @@ class PyrogenApp():
         #)
 
         # CPU to GPU (uniform data)
-        self._program["projection"].write(self.openGlData["projMatrix"])
+        matrix = self._openGlData.get("projMatrix")
+        self._program["projection"].write( matrix )
 
         #TODO : remove it definitely and read the atlasInfo to know from where getting textures
         self._program["atlasDataID"] = [2,3,4]
@@ -348,16 +335,16 @@ class PyrogenApp():
         # Use atlas from pyglet (algo to make fits the better)
         # max dim 16k*16k
         # see ctx.info for info
-        self.openGlData["atlasInfo"    ].use(0)
-        self.openGlData["lightInfo"    ].use(1)
-        self.openGlData["diffuseAtlas" ].use(2)
-        self.openGlData["normalAtlas"  ].use(3)
-        self.openGlData["specularAtlas"].use(4)
+        self._openGlData.get("atlasInfo"    ).use(0)
+        self._openGlData.get("lightInfo"    ).use(1)
+        self._openGlData.get("diffuseAtlas" ).use(2)
+        self._openGlData.get("normalAtlas"  ).use(3)
+        self._openGlData.get("specularAtlas").use(4)
 
         # Since we have overallocated the buffer (room for 1000 sprites) we
         # need to specify how many we actually want to render passing number of vertices.
         # Also the mode needs to be the same as the geometry shader input type (points!)
-        self.openGlData["vao"].render(mode=moderngl.POINTS, vertices=self.openGlData["nbSprites"])
+        self._openGlData.get("vao").render(mode=moderngl.POINTS, vertices=self._openGlData.get("nbSprites"))
 
         if self._window.ctx.error != "GL_NO_ERROR":
             print("[ERROR] during rendering...")
