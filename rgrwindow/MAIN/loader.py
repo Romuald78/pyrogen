@@ -83,6 +83,14 @@ class ResourceImage():
         return self.y0 + self.height -1
 
     @property
+    def spriteWidth(self):
+        return self._spriteW
+    @property
+    def spriteHeight(self):
+        return self._spriteH
+
+
+    @property
     def data(self):
         return self._img
     @property
@@ -330,6 +338,7 @@ class ResourceLoader():
         # Browse all images and get their hash, in order to create the atlas hash
         h = hashlib.sha256()
         h.update(str(squareSize).encode())
+        h.update(str(border).encode())
         for name in self._images:
             img = self._images[name]
             h.update(img.hash.encode())
@@ -345,7 +354,7 @@ class ResourceLoader():
 
             # First sort images by biggest width then biggest height
             lst = self._images.values()
-            lst = sorted(lst, key=lambda x:(-x.width,-x.height))
+            lst = sorted(lst, key=lambda x:(-x.spriteWidth,-x.spriteHeight))
 
             # For each image, make it fit into a squareSize structure
             binPacking = BinPacking(squareSize, border, lst)

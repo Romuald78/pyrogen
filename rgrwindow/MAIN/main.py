@@ -44,7 +44,7 @@ def main():
     shader = SimpleShader()
 
     # Instanciate app
-    app    = PyrogenApp()
+    app    = PyrogenApp(loader)
     window = app.window
 
     # Add program to application
@@ -56,7 +56,7 @@ def main():
 
 
 
-    app.prepareData(loader)
+    app.prepareData()
 
     for field in app.context.info:
         print(f"{field} : {app.context.info[field]}")

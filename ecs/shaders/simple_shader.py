@@ -57,6 +57,11 @@ class SimpleShader(Shader):
             out vec2 uv;
 
             void main() {
+                // We grab the position value from the vertex shader
+                vec2 center = gl_in[0].gl_Position.xy;
+                // Calculate the half size of the sprites for easier calculations
+                vec2 hsize = size[0] / 2.0;
+
                 // Get texture dimensions
                 vec2  texDim  = textureSize(atlasDataID[ID_TEXT_DIFFUSE],0);
                 uvec4 texBox2 = texelFetch( atlasInfoID, ivec2(int(tex_id[0]),0), 0 );
@@ -73,10 +78,6 @@ class SimpleShader(Shader):
                 pos0.y = 1.0-pos0.y;
                 pos1.y = 1.0-pos1.y;
 
-                // We grab the position value from the vertex shader
-                vec2 center = gl_in[0].gl_Position.xy;
-                // Calculate the half size of the sprites for easier calculations
-                vec2 hsize = size[0] / 2.0;
                 // Convert the rotation to radians
                 float angle = radians(rotation[0]);
                 // Create a 2d rotation matrix
@@ -84,6 +85,14 @@ class SimpleShader(Shader):
                     cos(angle), sin(angle),
                     -sin(angle), cos(angle)
                 );
+
+//*
+                // Get center position and check if it is outside viewport
+                vec4 glCenter = projection * vec4(center, 0.0, 1.0);
+                if (abs(glCenter.x) > 1.0 || abs(glCenter.y) > 1.0){
+                    return;
+                }
+//*/              
 
                 // Emit a triangle strip creating a quad (4 vertices).
                 // Here we need to make sure the rotation is applied before we position the sprite.
@@ -131,3 +140,4 @@ class SimpleShader(Shader):
 
             }
             """
+
