@@ -13,9 +13,10 @@ from pyrr import Matrix44
 from .opengl_data import OpenGLData
 
 
-DEBUG_NB_SPRITES     = 1024*1024
-DEBUG_DISPLAY_QUERY  = False
+DEBUG_SIZE           = 1024
+DEBUG_NB_SPRITES     = DEBUG_SIZE * DEBUG_SIZE
 DEBUG_MOVING_SPRITES = False
+DEBUG_DISPLAY_QUERY  = False
 
 class PyrogenApp():
 
@@ -295,14 +296,13 @@ class PyrogenApp():
     def _genSprites(self, time, num_sprites, loader):
         # Grab the size of the screen or current render target
         width, height = self._window.ctx.fbo.size
-        sqrtNbsprites = int(math.sqrt(DEBUG_NB_SPRITES))
         for i in range(num_sprites):
             allIDs = loader.getAllIds()
             spriteID = random.choice(allIDs)
             texture  = loader.getTextureById(spriteID)
             # Position (32x32 grid)
-            yield (i %  sqrtNbsprites) * 32
-            yield (i // sqrtNbsprites) * 32
+            yield (i %  DEBUG_SIZE) * 32
+            yield (i // DEBUG_SIZE) * 32
             # size
             yield texture["w"]
             yield texture["h"]
@@ -355,11 +355,13 @@ class PyrogenApp():
 
         # Change view port
         w, h = self._window.ctx.screen.size
-        x0   = int(w+math.cos(time/11+0)*w) * 8
-        y0   = int(h+math.sin(time/11+0)*h) * 8
-        zoom = 3*math.sin(time/5+1) + 3.25   # zoom beween 0.25 and 6.25
-        w *= zoom
-        h *= zoom
+        a = math.cos(time / 10) * math.cos(3 * time / 10)
+        b = a * a
+        zoom = 6 * b + 0.25  # zoom beween 0.25 and 6.25
+        x0   = int( (0.5 * math.cos(time / 40) + 0.5) * 32 * 1024 ) - 16 - zoom * (w // 2)
+        y0   = int( (0.5 * math.sin(time / 40) + 0.5) * 32 * 1024 ) - 16 - zoom * (h // 2)
+        w   *= zoom
+        h   *= zoom
         self.setViewPort( x0, y0, x0+w, y0+h )
 
 

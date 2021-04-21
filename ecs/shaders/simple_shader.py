@@ -86,13 +86,11 @@ class SimpleShader(Shader):
                     -sin(angle), cos(angle)
                 );
 
-//*
                 // Get center position and check if it is outside viewport
                 vec4 glCenter = projection * vec4(center, 0.0, 1.0);
-                if (abs(glCenter.x) > 1.0 || abs(glCenter.y) > 1.0){
+                if (abs(glCenter.x) > 1.05 || abs(glCenter.y) > 1.05){
                     return;
                 }
-//*/              
 
                 // Emit a triangle strip creating a quad (4 vertices).
                 // Here we need to make sure the rotation is applied before we position the sprite.
