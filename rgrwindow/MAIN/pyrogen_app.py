@@ -10,13 +10,32 @@ from moderngl_window import settings, resources
 from moderngl_window.meta import TextureDescription
 from pyrr import Matrix44
 
+from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import Gfx, GfxSprite
 from .opengl_data import OpenGLData
 
 
-DEBUG_SIZE           = 1024
+# -----------------------------------
+# STATIC SPRITES
+# -----------------------------------
+#DEBUG_SIZE           = 1024
+#DEBUG_NB_SPRITES     = DEBUG_SIZE * DEBUG_SIZE
+#DEBUG_MOVING_SPRITES = False
+#DEBUG_DISPLAY_QUERY  = False
+
+
+# -----------------------------------
+# DYNAMIC SPRITES
+# -----------------------------------
+DEBUG_SIZE           = 55
 DEBUG_NB_SPRITES     = DEBUG_SIZE * DEBUG_SIZE
-DEBUG_MOVING_SPRITES = False
+DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
+
+
+# TODO -----------------------------------------------------------------
+# TODO : is there a duplication between spriteBuffer and vertexData ????
+# TODO -----------------------------------------------------------------
+
 
 class PyrogenApp():
 
@@ -53,15 +72,22 @@ class PyrogenApp():
     # CONSTRUCTOR
     # TODO add icon when creating app
     #========================================================================
-    def __init__(self, loader):
+    def __init__(self, loader, size=(1280,720)):
         # Create a Pyglet window
         settings.WINDOW['class'] = 'moderngl_window.context.pyglet.Window'
         settings.WINDOW['vsync'] = not DEBUG_DISPLAY_QUERY
+        settings.WINDOW['size' ] = size
         self._window             = moderngl_window.create_window_from_settings()
         print(self._window.ctx.info)
 
+#        self._window.fullscreen = True
+
         # Store resource loader
         self._loader = loader
+
+        # Store static loader ref in Gfx class
+        Gfx.setLoader(self._loader)
+
 
         # Store a list of different programs
         # Only one can be selected at a time
@@ -222,6 +248,7 @@ class PyrogenApp():
         self._openGlData.set("spriteBuffer", buffer        )
 
 
+
         # -----------------------------------------------------------------
         # VERTEX ARRAY OBJECT
         # -----------------------------------------------------------------
@@ -241,15 +268,24 @@ class PyrogenApp():
 
 
 
+        # CREATE SPRITE LIST
+        self._createSprites(nbMaxSprites, self._loader)
 
-        # TODO : use numpy to improve perfs instead of shapely array?
+
+        # CREATE SPRITE VERTEX ARRAY
         # This step is filling the array
         # and copying it from CPU side to GPU side
-        self._openGlData.get("spriteBuffer").write(array("f", self._genSprites(0, nbMaxSprites, self._loader)))
+        # TODO : use numpy to improve perfs instead of shapely array?
+        vertexData = array("f", self._genVertex())
+        self._openGlData.set("vertexData", vertexData)
+        self._openGlData.get("spriteBuffer").write(self._openGlData.get("vertexData"))
+
+
 
         # -----------------------------------------------------------------
         # PROJECTION MATRIX
         # TODO : use this to change viewport (position, size, zoom, rotation, ...)
+        # TODO : handle rotation
         # -----------------------------------------------------------------
         ## calculate some offset. We truncate to intergers here.
         ## This depends what "look" you want for your game.
@@ -274,12 +310,23 @@ class PyrogenApp():
         yMax = h
         self.setViewPort(xMin, yMin, xMax, yMax)
 
+
+
+        # -----------------------------------------------------------------
+        # UNIFORMS DATA
+        # -----------------------------------------------------------------
         # Uniform data to know from which channel the atlas can be read
         self._program["atlasDataID"] = [2,3,4]
         self._program["atlasInfoID"] = 0
 
-        # Query configuration
+
+
+        # Query configuration for profiling
         self._query = self._window.ctx.query(samples=True, time=True, primitives=True)
+
+
+
+
 
 
     def setViewPort(self, x0, y0, x1, y1):
@@ -292,25 +339,68 @@ class PyrogenApp():
         self._program["projection"].write( matrix )
 
 
-
-    def _genSprites(self, time, num_sprites, loader):
-        # Grab the size of the screen or current render target
-        width, height = self._window.ctx.fbo.size
-        for i in range(num_sprites):
-            allIDs = loader.getAllIds()
-            spriteID = random.choice(allIDs)
-            texture  = loader.getTextureById(spriteID)
-            # Position (32x32 grid)
-            yield (i %  DEBUG_SIZE) * 32
-            yield (i // DEBUG_SIZE) * 32
-            # size
-            yield texture["w"]
-            yield texture["h"]
+    def _createSprites(self, nbSprites, loader):
+        self._sprites = []
+        for i in range(nbSprites):
+            randI   = (i + 1) / nbSprites
+            allIDs  = loader.getAllIds()
+            id      = random.choice(allIDs)
+            texture = loader.getTextureById(id)
+            # -----------------------------
+            # Name
+            name = texture["name"]
+            # Position
+            if not DEBUG_MOVING_SPRITES:
+                x = (i  % DEBUG_SIZE) * 32
+                y = (i // DEBUG_SIZE) * 32
+            else:
+                x = (math.cos(0) * randI * 16 * DEBUG_SIZE) + (32 * DEBUG_SIZE / 2)
+                y = (math.sin(0) * randI * 16 * DEBUG_SIZE) + (32 * DEBUG_SIZE / 2)
             # rotation
-            yield math.sin(time + i) * 100
-            # Texture ID (from it, in the ATLAS INFO we can retrieve (X,Y,W,H)
-            yield spriteID
+            angle = math.sin(0 + i) * 180
+            #Sprite creation
+            sprite  = GfxSprite(name,x=x, y=y, angle=angle)
+            self._sprites.append(sprite)
 
+        # Update vertexData for all sprites
+        self._openGlData.set("vertexData", array("f", self._genVertex()) )
+
+
+
+    def _updateSprites(self, time):
+
+        seed = 123456789
+        random.seed(seed)
+
+        for i in range(len(self._sprites)):
+            randI = (i+1)/len(self._sprites)
+            spr = self._sprites[i]
+            # Position
+            if not DEBUG_MOVING_SPRITES:
+                spr.centerX = (i %  DEBUG_SIZE) * 32
+                spr.centerY = (i // DEBUG_SIZE) * 32
+            else:
+                spr.centerX = (math.cos(time*randI*4) * randI * 16 * DEBUG_SIZE) + (self._window.width//2 )
+                spr.centerY = (math.sin(time*randI*4) * randI * 8 * DEBUG_SIZE ) + (self._window.height//2)
+            # size/scale
+            # ...
+            # rotation
+            spr.angle = math.sin(time + i) * 180
+
+        # Update vertexData for all sprites
+        self._openGlData.set("vertexData", array("f", self._genVertex()) )
+
+
+    def _genVertex(self):
+
+        for i in range(len(self._sprites)):
+            spr = self._sprites[i]
+            yield spr.centerX
+            yield spr.centerY
+            yield spr.width
+            yield spr.height
+            yield spr.angle
+            yield spr.textureID
 
 
     def render(self, time, frame_time):
@@ -348,18 +438,27 @@ class PyrogenApp():
         self._openGlData.get("specularAtlas").use(4)
 
 
-        # Update all sprites and write vertex array once again
+
+        # Update all sprites once again (update method)
         if DEBUG_MOVING_SPRITES:
-            self._openGlData.get("spriteBuffer").write(array("f", self._genSprites(time, DEBUG_NB_SPRITES, self._loader)))
+            self._updateSprites(time)
 
 
-        # Change view port
+        # Write all sprite data
+        self._openGlData.get("spriteBuffer").write(self._openGlData.get("vertexData"))
+
+
+        # Change view port (for static sprites)
         w, h = self._window.ctx.screen.size
-        a = math.cos(time / 10) * math.cos(3 * time / 10)
-        b = a * a
-        zoom = 6 * b + 0.25  # zoom beween 0.25 and 6.25
-        x0   = int( (0.5 * math.cos(time / 40) + 0.5) * 32 * 1024 ) - 16 - zoom * (w // 2)
-        y0   = int( (0.5 * math.sin(time / 40) + 0.5) * 32 * 1024 ) - 16 - zoom * (h // 2)
+        zoom = 1.0
+        x0 = -16
+        y0 = -16
+        if not DEBUG_MOVING_SPRITES:
+            a = math.cos(time / 10) * math.cos(3 * time / 10)
+            b = a * a
+            zoom = 6 * b + 0.25  # zoom beween 0.25 and 6.25
+            x0   = int( (0.5 * math.cos(time / 40) + 0.5) * 32 * DEBUG_SIZE ) - 16 - zoom * (w // 2)
+            y0   = int( (0.5 * math.sin(time / 40) + 0.5) * 32 * DEBUG_SIZE ) - 16 - zoom * (h // 2)
         w   *= zoom
         h   *= zoom
         self.setViewPort( x0, y0, x0+w, y0+h )

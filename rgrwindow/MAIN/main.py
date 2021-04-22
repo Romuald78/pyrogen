@@ -15,7 +15,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.pyrogen_app import PyrogenApp
 def main():
 
     # -------------------------------------------------------------------
-    # Test Loader
+    # Fill Loader
     # -------------------------------------------------------------------
     loader = ResourceLoader()
 
@@ -36,6 +36,9 @@ def main():
     loader.generateImageAtlas(600, 2)
 
 
+
+
+
     # -------------------------------------------------------------------
     # Application configuration
     # -------------------------------------------------------------------
@@ -44,7 +47,7 @@ def main():
     shader = SimpleShader()
 
     # Instanciate app
-    app    = PyrogenApp(loader)
+    app    = PyrogenApp(loader, (1280,720))
     window = app.window
 
     # Add program to application
@@ -61,9 +64,12 @@ def main():
     for field in app.context.info:
         print(f"{field} : {app.context.info[field]}")
 
+    input()
+
     TIMES = [1/60,]
     timer = Timer()
     timer.start()
+
 
     while not app.window.is_closing:
         time, frame_time = timer.next_frame()

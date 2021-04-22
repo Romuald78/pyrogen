@@ -18,6 +18,7 @@ class OpenGLData():
             "nbSprites"    : None,  # integer (number of vertices)
             "spriteSize"   : None,  # integer (data size for one vertex)
             "spriteBuffer" : None,  # vertex buffer
+            "vertexData"   : None,  # vertex data copied to the vertex buffer
 
             "vao"          : None,  # Vertex array object
             "projMatrix"   : None,  # Projection matrix (used for camera feature)
