@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from PIL import Image
 from os.path import basename, exists
 
@@ -378,9 +380,8 @@ class ResourceLoader():
             name = texture["name"]
             self._textureByID[id]     = texture
             self._textureByName[name] = texture
-        self._diffusePath  = atlasPath
-        self._normalPath   = atlasPath
-        self._specularPath = atlasPath
+
+        self._atlasPath  = atlasPath
 
 
     def getNbTextures(self):
@@ -401,9 +402,13 @@ class ResourceLoader():
     def getAllIds(self):
         return list(self._textureByID.keys())
 
-    def getDiffuseAtlasPath(self):
-        return self._diffusePath
-    def getNormalAtlasPath(self):
-        return self._normalPath
-    def getSpecularAtlasPath(self):
-        return self._specularPath
+    def getTextureAtlasPath(self):
+        return self._atlasPath
+
+    def getTextureImage(self):
+        dirPath  = Path(__file__).parent.resolve()
+        filePath = self.getTextureAtlasPath()
+        image = Image.open(f"{dirPath}/{filePath}").convert("RGBA")
+        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+        return image
+

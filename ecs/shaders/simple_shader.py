@@ -9,9 +9,6 @@ class SimpleShader(Shader):
         return """
             #version 330
 
-            #define ID_TEXT_DIFFUSE   0
-            #define ID_TEXT_NORMAL    1
-            #define ID_TEXT_SPECULAR  2
 
         """
 
@@ -43,9 +40,9 @@ class SimpleShader(Shader):
             layout (points) in;
             layout (triangle_strip, max_vertices = 4) out;
 
-            uniform mat4       projection;
-            uniform sampler2D  atlasDataID[3];
-            uniform usampler2D atlasInfoID;
+            uniform mat4        projection;
+            uniform sampler2D   atlasTextureID;
+            uniform usampler2D  atlasInfoID;
 
             // Since geometry shader can take multiple values from a vertex
             // shader we need to define the inputs from it as arrays.
@@ -63,12 +60,12 @@ class SimpleShader(Shader):
                 vec2 hsize = size[0] / 2.0;
 
                 // Get texture dimensions
-                vec2  texDim  = textureSize(atlasDataID[ID_TEXT_DIFFUSE],0);
-                uvec4 texBox2 = texelFetch( atlasInfoID, ivec2(int(tex_id[0]),0), 0 );
+                vec2  texDim  = textureSize(atlasTextureID,0);
+                uvec4 texBox2 = texelFetch(atlasInfoID, ivec2(int(tex_id[0]),0), 0 );
                 vec4  texBox  = vec4(texBox2);
 
                 // Half pixel
-                vec2 halfPixel = vec2(0.0)/texDim;
+                vec2 halfPixel = vec2(0.0)/texDim;   // set 0.5 for half pixel feature
 
                 // Get texture coords
                 vec2 pos0 = (texBox.xy/texDim.xy);
@@ -126,14 +123,14 @@ class SimpleShader(Shader):
 
     def getFragment(self):
         return self._getHeader() + """
-            uniform sampler2D  atlasDataID[3];
+            uniform sampler2D  atlasTextureID;
 
             in vec2 uv;
             out vec4 fragColor;
 
             void main() {
 
-                vec4 color = texture(atlasDataID[ID_TEXT_DIFFUSE], uv);
+                vec4 color = texture(atlasTextureID, uv);
                 fragColor = color; 
 
             }
