@@ -15,7 +15,7 @@ class OpenGLData():
 
             "nbSprites"    : None,  # integer (number of vertices)
             "spriteSize"   : None,  # integer (data size for one vertex)
-            "spriteBuffer" : None,  # vertex buffer
+            "vertexBuffer" : None,  # vertex buffer
             "vertexData"   : None,  # vertex data copied to the vertex buffer
 
             "fsTable"      : None,  # Texture buffer used to store the FS allocation table

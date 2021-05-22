@@ -1,15 +1,28 @@
 import math
+from array import array
 from pathlib import Path
+import random
 
 import numpy as np
 import moderngl
 import moderngl_window
 import pyglet
-from PIL import Image
+from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
+from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
+
+
+
+# ========================================================
+# DEBUG PARAMS
+# ========================================================
+DEBUG_NB_SPRITES     = 1024*1024
+DEBUG_MOVING_SPRITES = False
+DEBUG_DISPLAY_QUERY  = False
+
 
 
 class PyrogenApp3(pyglet.window.Window):
@@ -130,6 +143,12 @@ class PyrogenApp3(pyglet.window.Window):
         # init app time
         self.time = 0
 
+        # Init sprite Manager (debug only for the moment)
+        self._spriteMgr = SpriteMgr()
+
+        # Profiling
+        self._FPS = []
+
 
     # ========================================================================
     # RESOURCES
@@ -160,6 +179,19 @@ class PyrogenApp3(pyglet.window.Window):
     def __selectProgram(self, name):
         if name in self._programs:
             self._program = self._programs[name]
+
+
+    # ========================================================================
+    # VIEWPORT CONFIGURATION
+    # ========================================================================
+    def _setViewPort(self, x0, y0, x1, y1):
+        near = 1
+        far  = 0
+        matrix = Matrix44.orthogonal_projection(x0, x1, y1, y0, near, far, dtype="f4")
+        self._openGlData.set("projMatrix", matrix)
+        # CPU to GPU (uniform data)
+        matrix = self._openGlData.get("projMatrix")
+        self._program["projection"].write( matrix )
 
 
     # ========================================================================
@@ -254,11 +286,18 @@ class PyrogenApp3(pyglet.window.Window):
         # Create sprite information (input data)
         nbComponents = 4
         spriteInfoSize = (5 + 1) * nbComponents  # 6 values in vertex input
-        nbMaxSprites = 100
+        nbMaxSprites = DEBUG_NB_SPRITES
         buffer = self.ctx.buffer(reserve=nbMaxSprites * spriteInfoSize)
         self._openGlData.set("spriteSize", spriteInfoSize)
         self._openGlData.set("nbSprites", nbMaxSprites)
-        self._openGlData.set("spriteBuffer", buffer)
+        self._openGlData.set("vertexBuffer", buffer)
+
+        # -----------------------------------------------------------------
+        # VIEWPORT
+        # -----------------------------------------------------------------
+        # Change view port (for static sprites)
+        w, h = self.ctx.screen.size
+        self._setViewPort(0, 0, w, h)
 
         # -----------------------------------------------------------------
         # VERTEX ARRAY OBJECT
@@ -267,7 +306,7 @@ class PyrogenApp3(pyglet.window.Window):
         vertexArray = self.ctx.vertex_array(
                         self._program,
                         [
-                            (self._openGlData.get("spriteBuffer"),
+                            (self._openGlData.get("vertexBuffer"),
                              "2f 2f 1f 1f",
                              "in_position",
                              "in_size",
@@ -276,6 +315,32 @@ class PyrogenApp3(pyglet.window.Window):
                         ]
                     )
         self._openGlData.set("vao", vertexArray)
+
+        # -----------------------------------------------------------------
+        # UNIFORMS DATA
+        # -----------------------------------------------------------------
+        # Uniform data to know from which channel the data can be read
+        # - atlas texture Information (where are located the sprites)
+        # - atlas texture (sprites)
+        self._program["atlasTextureID"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
+        self._program["atlasInfoID"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
+
+        # -----------------------------------------------------------------
+        # PREPARE SPRITE DATA
+        # -----------------------------------------------------------------
+        # Prepare sprites
+        self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, (self.width,self.height))
+        vd = array("f", self._spriteMgr.genVertex())
+        self._openGlData.set("vertexData", vd)
+        # write into GPU for the first time
+        self._openGlData.get("vertexBuffer").write(vd)
+
+        # -----------------------------------------------------------------
+        # PROFILING
+        # -----------------------------------------------------------------
+        # Query configuration for profiling
+        self._query = self.ctx.query(samples=True, time=True, primitives=True)
+
 
 
         # TODO                                               !!
@@ -290,7 +355,30 @@ class PyrogenApp3(pyglet.window.Window):
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
+        self._FPS.append(deltaTime)
+        if len(self._FPS)==60:
+            print(60/sum(self._FPS))
+            self._FPS = []
         self.time += deltaTime
+
+        # update moving sprites if needed
+        if DEBUG_MOVING_SPRITES:
+            self._spriteMgr.updateMovingSprites(self.time, (self.width, self.height))
+
+        # update viewport if not moving sprites
+        if not DEBUG_MOVING_SPRITES:
+            squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
+            w, h = self.ctx.screen.size
+            a = math.cos(self.time / 19) * math.cos(3 * self.time / 10)
+            a = a * a
+            zoom = 6 * a + 0.25  # zoom beween 0.25 and 6.25
+            W2 = (squareSize*32) - w*zoom + 64
+            H2 = (squareSize*32) - h*zoom + 64
+            x0 = int((0.5*math.cos(self.time / 31) + 0.5) * W2) - 48
+            y0 = int((0.5*math.sin(self.time / 29) + 0.5) * H2) - 48
+            w   *= zoom
+            h   *= zoom
+            self._setViewPort( x0, y0, x0+w, y0+h )
 
 
     # ========================================================
@@ -322,7 +410,33 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.get("textureAtlas").use(PyrogenApp3.CHANNEL_ATLAS_TEXTURE)
         self._openGlData.get("lightInfo").use(PyrogenApp3.CHANNEL_LIGHTS)
 
+        # Write sprite info into the vertex array
+        # TODO :
+        # next step when using the GPU File System, we will have only block IDs
+        # in this vertexbuffer. So only when order modification occurs, it will be reloaded
+        # into the GPU
+        # The file system must be splitted in several "pages", so we can gather all
+        # moving sprites in the same pages, it will reduce the number of writing operations
+        # TODO : debug for the moment, just rewrite in case of MOVING SPRITES
+        if DEBUG_MOVING_SPRITES:
+            vd = array("f", self._spriteMgr.genVertex())
+            self._openGlData.set("vertexData", vd)
 
+        # In all cases, write vertex buffer to GPU
+        vd = self._openGlData.get("vertexData")
+        self._openGlData.get("vertexBuffer").write(vd)
+
+        # Process rendering
+        with self._query:
+            # TODO | Since we overallocat the buffer (room for 1000 sprites) we
+            # TODO | need to specify how many we actually want to render passing number of vertices.
+            # TODO | Also the mode needs to be the same as the geometry shader input type (points!)
+            self._openGlData.get("vao").render(mode=moderngl.POINTS, vertices=self._openGlData.get("nbSprites"))
+
+            if self.ctx.error != "GL_NO_ERROR":
+                print("[ERROR] during rendering...")
+                print(self.ctx.error)
+                exit()
 
 
 
@@ -339,6 +453,9 @@ class PyrogenApp3(pyglet.window.Window):
         # TODO use the GPU texture size property instead of hard-coded value
         self._loader.generateImageAtlas(768, 3)
 
+        # Load the loader ref into the Gfx class (static member)
+        Gfx.setLoader(self._loader)
+
         # Instanciate shader object and add program
         shader = SimpleShader()
         self.__addProgram("Program #1",
@@ -354,6 +471,55 @@ class PyrogenApp3(pyglet.window.Window):
         pyglet.app.run()
 
 
+
+
+
+class SpriteMgr():
+
+    def __init__(self):
+        self._sprites = []
+
+    def createRandomSprites(self, loader, N, winSize):
+        squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES),0))
+        for i in range(N):
+            allIDs  = loader.getAllIds()
+            id      = random.choice(allIDs)
+            texture = loader.getTextureById(id)
+            # -----------------------------
+            # Name
+            name = texture["name"]
+            # Position
+            x = (i  % squareSize) * 32
+            y = (i // squareSize) * 32
+            # rotation
+            angle = 0
+            #Sprite creation
+            sprite  = GfxSprite(name,x=x, y=y, angle=angle)
+            self._sprites.append(sprite)
+
+    def updateMovingSprites(self, time, winSize):
+        seed = 123456789
+        random.seed(seed)
+        for i in range(len(self._sprites)):
+            randI = (i+1)/len(self._sprites)
+            spr = self._sprites[i]
+            # Position...
+            spr.x = (math.cos(time*randI*4) * randI * winSize[0]/2) + (winSize[0]/2)
+            spr.y = (math.sin(time*randI*4) * randI * winSize[1]/2) + (winSize[1]/2)
+            # ...and scale (for moving sprites)
+            spr.scale = randI*1.25 + 0.25
+            # rotation
+            spr.angle = math.sin(time + i) * 180
+
+    def genVertex(self):
+        for i in range(len(self._sprites)):
+            spr = self._sprites[i]
+            yield spr.x
+            yield spr.y
+            yield spr.width
+            yield spr.height
+            yield spr.angle
+            yield spr.textureID
 
 
 
