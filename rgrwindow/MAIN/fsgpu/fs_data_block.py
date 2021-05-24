@@ -14,9 +14,9 @@ class FsDataBlock():
     TYPE  = 1   # Type of block (empty, sprite, rectangle, oval, line, text, light, ...)
                 # Types are not handled internally but provided from outside (except the 0/empty value)
     RAND  = 2   # random value for checksum
-    CHK   = 3
+    CHK   = 3   # Block Checksum
 
-    OVERHEAD = 1    # 1 unit as overhead
+    OVERHEAD = 4    # 4 values as overhead
 
 
     # ----------------------------------------------------
@@ -31,8 +31,8 @@ class FsDataBlock():
     def _verifCHK(self, offset):
         v = self._computeCHK(offset)
         if self._buffer[offset+FsDataBlock.CHK] != v:
-            id = offset//self.components
-            raise RuntimeError(f"[ERROR] bad data block integrity @offset={offset} id={id} nbComponents={self.components}")
+            dump = self.dumpBlocks()
+            raise RuntimeError(f"[ERROR] bad data block integrity @offset={offset} nbComponents={self.components}\n{dump}")
 
 
     # ----------------------------------------------------
@@ -73,7 +73,6 @@ class FsDataBlock():
         return T == FsDataBlock.EMPTY
 
     def findEmptyBlock(self, userSize, offset=0):
-        print(f"search for {userSize} @{offset}")
         # if the table is full
         if offset >= self.size:
             return None
@@ -86,11 +85,16 @@ class FsDataBlock():
             self._mergeNext(offset)
             # Then get current block length (may have been merged)
             L = int(self._buffer[offset + FsDataBlock.LENG])
+            if L <= 0:
+                raise RuntimeError("[ERROR] Bad length \n"+self.dumpBlocks())
             # then check if size is enough
-            if userSize + FsDataBlock.OVERHEAD <= L:
+            if userSize + FsDataBlock.OVERHEAD <= L - FsDataBlock.OVERHEAD:
                 return offset
             else:
-                print(f"{userSize} is bigger than {L}")
+                # BUG : corruption is linked to this step (???)
+                # check next slot because current is too small
+                #raise RuntimeError(self.dumpBlocks())
+                return self.findEmptyBlock(userSize, offset + L)
         else:
             # Then get current block length (may have been merged)
             L = int(self._buffer[offset + FsDataBlock.LENG])
@@ -108,6 +112,19 @@ class FsDataBlock():
     def isBusy(self, offset):
         return not self.isEmpty(offset)
 
+    def getInfo(self, offset):
+        # if the table is full
+        if offset >= self.size:
+            return None
+        # Check data integrity
+        self._verifCHK(offset)
+        # prepare output
+        L = self._buffer[offset+FsDataBlock.LENG]
+        T = self._buffer[offset+FsDataBlock.TYPE]
+        R = self._buffer[offset+FsDataBlock.RAND]
+        C = self._buffer[offset+FsDataBlock.CHK ]
+        return {"length": L, "type": T, "random": R, "checksum": C}
+
 
     # ----------------------------------------------------
     # Use a slot
@@ -116,9 +133,10 @@ class FsDataBlock():
         blockLen = userLen + FsDataBlock.OVERHEAD
         # Get block data
         L = self._buffer[offset + FsDataBlock.LENG]
-        # check if the block can contains all the user data
-        if blockLen > L:
+        # check if the block can contains all the user data and let space for at least one header + 0 data byte
+        if blockLen > L - FsDataBlock.OVERHEAD:
             raise RuntimeError(f"[ERROR] block offset {offset} cannot contains {userLen}+{FsDataBlock.OVERHEAD} values")
+
         # update current block (transform from empty to 'type')
         self._buffer[offset + FsDataBlock.TYPE] = type
         self._buffer[offset + FsDataBlock.LENG] = blockLen
@@ -133,13 +151,13 @@ class FsDataBlock():
             self._buffer[offset + FsDataBlock.RAND] = random() + 0.1
             self._buffer[offset + FsDataBlock.CHK]  = self._computeCHK(offset)
 
-    def useBlock(self, type, offset, userLen):
+    def useBlock(self, type, userLen, offset):
         # if the table is full
         if offset >= self.size:
             return None
         # check user type
         if type == FsDataBlock.EMPTY:
-            raise RuntimeError("[ERROR] bad user type={type} !")
+            raise RuntimeError("[ERROR] bad user type={type}. Cannot reserve an empty block !")
         # Check data integrity
         self._verifCHK(offset)
         # Get current slot information
@@ -175,7 +193,7 @@ class FsDataBlock():
             self._buffer[offset + FsDataBlock.LENG]  = L+L2
             self._buffer[offset + FsDataBlock.CHK ]  = self._computeCHK(offset)
             # Check if another block can be merged once again
-            print(f"merged between @{offset} and @{offset2}")
+            #print(f"merged between @{offset} and @{offset2}")
             self._mergeNext(offset)
 
     def _release(self, offset):
@@ -203,14 +221,19 @@ class FsDataBlock():
     # ----------------------------------------------------
     # Debug
     # ----------------------------------------------------
-    def display(self, offset=0):
-        i = 5
-        L = 0
-        print("--------------")
-        while i > 0 and offset < self.size:
-            T = self._buffer[offset + FsDataBlock.TYPE]
-            L = self._buffer[offset + FsDataBlock.LENG]
+    def display(self):
+        print(self.dumpBlocks())
+
+    def dumpBlocks(self, offset=0):
+        CR = "\n"
+        msg = "--------------" + CR
+        i = 0
+        while offset < self.size:
+            T = int(self._buffer[offset + FsDataBlock.TYPE])
+            L = int(self._buffer[offset + FsDataBlock.LENG])
             R = self._buffer[offset + FsDataBlock.RAND]
             C = self._buffer[offset + FsDataBlock.CHK ]
-            print(f"<Block : length={L}\t type={T}\t random={R}\t checksum={C}>")
+            msg += f"<Block #{i} @{'0x{0:0{1}X}'.format(offset,8)} - length={'0x{0:0{1}X}'.format(L,8)}\t type={T}\t random={R}\t checksum={C}>" + CR
             offset += int(L)
+            i += 1
+        return msg

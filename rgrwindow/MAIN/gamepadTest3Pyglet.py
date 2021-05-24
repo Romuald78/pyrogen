@@ -10,6 +10,7 @@ import pyglet
 from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
+from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu.fs_gpu import FsGpu
 from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
@@ -19,8 +20,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 1024*1024
-DEBUG_MOVING_SPRITES = False
+DEBUG_NB_SPRITES     = 3000
+DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 
 
@@ -341,14 +342,33 @@ class PyrogenApp3(pyglet.window.Window):
         # Query configuration for profiling
         self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
+        # -----------------------------------------------------------------
+        # GPU FILE SYSTEM
+        # -----------------------------------------------------------------
+        # -----------------------------------------------------------------
+        # FILE SYSTEM
+        # TODO : use the gpu device max texture size property instead of hard-coded size
+        # -----------------------------------------------------------------
+        # Allocation table
+        sizeW   = 1024
+        sizeH   = 1
+        fsTable = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="u4")
+        buffer1 = np.zeros(sizeW*sizeH*4, np.uint32)
+        fsTable.write(buffer1.tobytes())
+        self._openGlData.set("fsTable", fsTable)
+        # Data area
+        sizeW   = 16*1024
+        sizeH   = 1
+        fsData  = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
+        buffer2 = np.zeros(sizeW*sizeH*4, np.float32)
+        fsData.write(buffer2.tobytes())
+        self._openGlData.set("fsData", fsData)
+        # instanciate FsGpu
+        self._fsgpu = FsGpu(fsTable, buffer1, fsData, buffer2)
 
+        self._fsgpu.test()
 
-        # TODO                                               !!
-        # TODO continue to get code from pyrogen_app.py file !!
-        # TODO                                               !!
-
-
-
+        exit()
 
 
     # ========================================================

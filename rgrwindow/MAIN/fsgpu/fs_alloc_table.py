@@ -112,13 +112,13 @@ class FsAllocTable():
     # ----------------------------------------------------
     # Use a slot
     # ----------------------------------------------------
-    def _use(self, offset, userSize, blockOf7):
-        self._buffer[offset + FsAllocTable.TYPE] = randint(1,1000000)
+    def _use(self, offset, userType, userSize, blockOf7):
         self._buffer[offset + FsAllocTable.LENG] = userSize
+        self._buffer[offset + FsAllocTable.TYPE] = userType
         self._buffer[offset + FsAllocTable.OF7 ] = blockOf7
         self._buffer[offset + FsAllocTable.CHK ] = self._computeCHK(offset)
 
-    def useSlot(self, entryID, userSize, blockOF7):
+    def useSlot(self, entryID, userType, userSize, blockOF7):
         # if the table is full
         if entryID >= self.size:
             return None
@@ -128,7 +128,7 @@ class FsAllocTable():
         self._verifCHK(offset)
         # Get current slot information
         if self._isEmpty(offset):
-            self._use(offset, userSize, blockOF7)
+            self._use(offset, userType, userSize, blockOF7)
         else:
             raise RuntimeError(f"[ERROR] the slot {entryID} cannot be used as it is NOT empty !")
 
@@ -155,16 +155,4 @@ class FsAllocTable():
             self._release(offset)
         else:
             raise RuntimeError(f"[ERROR] the slot {entryID} cannot be released as it is ALREADY empty !")
-
-
-    # ----------------------------------------------------
-    # Debug
-    # ----------------------------------------------------
-    def display(self, entryID):
-        for i in range(10):
-            offset = i* self.components
-            T = self._buffer[offset + FsAllocTable.TYPE]
-            L = self._buffer[offset + FsAllocTable.LENG]
-            O = self._buffer[offset + FsAllocTable.OF7]
-            print(f"<Slot : type={T} length={L} offset={O} >")
 
