@@ -20,8 +20,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 3000
-DEBUG_MOVING_SPRITES = True
+DEBUG_NB_SPRITES     = 1
+DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 
 
@@ -282,7 +282,7 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.set("lightInfo", texture)
 
         # -----------------------------------------------------------------
-        # SPRITE BUFFER (VERTEX)
+        # VERTEX BUFFER
         # -----------------------------------------------------------------
         # Create sprite information (input data)
         nbComponents = 4
@@ -327,37 +327,18 @@ class PyrogenApp3(pyglet.window.Window):
         self._program["atlasInfoID"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
 
         # -----------------------------------------------------------------
-        # PREPARE SPRITE DATA
-        # -----------------------------------------------------------------
-        # Prepare sprites
-        self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, (self.width,self.height))
-        vd = array("f", self._spriteMgr.genVertex())
-        self._openGlData.set("vertexData", vd)
-        # write into GPU for the first time
-        self._openGlData.get("vertexBuffer").write(vd)
-
-        # -----------------------------------------------------------------
-        # PROFILING
-        # -----------------------------------------------------------------
-        # Query configuration for profiling
-        self._query = self.ctx.query(samples=True, time=True, primitives=True)
-
-        # -----------------------------------------------------------------
         # GPU FILE SYSTEM
-        # -----------------------------------------------------------------
-        # -----------------------------------------------------------------
-        # FILE SYSTEM
         # TODO : use the gpu device max texture size property instead of hard-coded size
         # -----------------------------------------------------------------
         # Allocation table
-        sizeW   = 1024
+        sizeW   = 1*1024*1024
         sizeH   = 1
         fsTable = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="u4")
         buffer1 = np.zeros(sizeW*sizeH*4, np.uint32)
         fsTable.write(buffer1.tobytes())
         self._openGlData.set("fsTable", fsTable)
         # Data area
-        sizeW   = 16*1024
+        sizeW   = 1*1024*1024
         sizeH   = 1
         fsData  = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
         buffer2 = np.zeros(sizeW*sizeH*4, np.float32)
@@ -366,9 +347,11 @@ class PyrogenApp3(pyglet.window.Window):
         # instanciate FsGpu
         self._fsgpu = FsGpu(fsTable, buffer1, fsData, buffer2)
 
-        self._fsgpu.test()
-
-        exit()
+        # -----------------------------------------------------------------
+        # PROFILING
+        # -----------------------------------------------------------------
+        # Query configuration for profiling
+        self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
 
     # ========================================================
@@ -473,7 +456,7 @@ class PyrogenApp3(pyglet.window.Window):
         # TODO use the GPU texture size property instead of hard-coded value
         self._loader.generateImageAtlas(768, 3)
 
-        # Load the loader ref into the Gfx class (static member)
+        # Put the loader ref into the Gfx class (static member)
         Gfx.setLoader(self._loader)
 
         # Instanciate shader object and add program
@@ -485,6 +468,21 @@ class PyrogenApp3(pyglet.window.Window):
 
         # Prepare GPU stuff
         self.__prepareData()
+
+        # Put the File System into the Gfx class (static member)
+        Gfx.setFileSystem(self._fsgpu)
+
+        #------ DEBUG ------
+        # PREPARE SPRITE DATA
+        #------ DEBUG ------
+        # Prepare sprites
+        self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, (self.width,self.height))
+        vd = array("f", self._spriteMgr.genVertex())
+        self._openGlData.set("vertexData", vd)
+        # write into GPU for the first time
+        self._openGlData.get("vertexBuffer").write(vd)
+        #------ DEBUG ------
+
         # update loop interval
         pyglet.clock.schedule_interval(self.update, 1/60)
         # Start pyglet app

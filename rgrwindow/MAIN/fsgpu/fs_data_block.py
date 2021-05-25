@@ -73,33 +73,29 @@ class FsDataBlock():
         return T == FsDataBlock.EMPTY
 
     def findEmptyBlock(self, userSize, offset=0):
-        # if the table is full
-        if offset >= self.size:
-            return None
-        # Check data integrity
-        self._verifCHK(offset)
-        # Get current slot information
-        if self._isEmpty(offset):
-            # We have found an empty block
-            # First try to merge it with next blocks in order to reduce fragmentation
-            self._mergeNext(offset)
-            # Then get current block length (may have been merged)
+        while True:
+            # if the table is full
+            if offset >= self.size:
+                return None
+            # Check data integrity
+            self._verifCHK(offset)
+            # Get current slot information
+            if self._isEmpty(offset):
+                # We have found an empty block
+                # First try to merge it with next blocks in order to reduce fragmentation
+                self._mergeNext(offset)
+                # Then get current block length (may have been merged)
+                L = int(self._buffer[offset + FsDataBlock.LENG])
+                if L <= 0:
+                    raise RuntimeError("[ERROR] Bad length \n"+self.dumpBlocks())
+                # then check if size is enough
+                if userSize + FsDataBlock.OVERHEAD <= L - FsDataBlock.OVERHEAD:
+                    return offset
+
+            # Get current block length
             L = int(self._buffer[offset + FsDataBlock.LENG])
-            if L <= 0:
-                raise RuntimeError("[ERROR] Bad length \n"+self.dumpBlocks())
-            # then check if size is enough
-            if userSize + FsDataBlock.OVERHEAD <= L - FsDataBlock.OVERHEAD:
-                return offset
-            else:
-                # BUG : corruption is linked to this step (???)
-                # check next slot because current is too small
-                #raise RuntimeError(self.dumpBlocks())
-                return self.findEmptyBlock(userSize, offset + L)
-        else:
-            # Then get current block length (may have been merged)
-            L = int(self._buffer[offset + FsDataBlock.LENG])
-            # check next slot because either previous is not available or too small
-            return self.findEmptyBlock(userSize, offset+L)
+            # check next slot because either current one is not available nor big enough
+            offset += L
 
     def isEmpty(self, offset):
         # if the table is full
@@ -217,6 +213,26 @@ class FsDataBlock():
         else:
             raise RuntimeError(f"[ERROR] the block offset {offset} cannot be released as it is ALREADY empty !")
 
+    # ----------------------------------------------------
+    # Write operations
+    # ----------------------------------------------------
+    def writeData(self, offset, buffer):
+        # if the table is full
+        if offset >= self.size :
+            raise RuntimeError(f"[ERROR] Bad offset @{offset} ")
+        # Check integrity
+        self._verifCHK(offset)
+        # Check length
+        L1 = len(buffer)
+        L2 = self._buffer[offset+FsDataBlock.LENG]
+        if L1 > L2 - FsDataBlock.OVERHEAD:
+            raise RuntimeError(f"[ERROR] cannot write data (L={L1}) @{offset} (available={L2})")
+        # Copy data into block
+        start = offset+FsDataBlock.OVERHEAD
+        end   = start + L1
+        self._buffer[start:end] = buffer
+        # Copy data into texture too
+        # TODO : update texture into GPU ,because for the moment only the CPU buffers are up to date
 
     # ----------------------------------------------------
     # Debug

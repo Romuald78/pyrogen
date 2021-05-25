@@ -62,20 +62,20 @@ class FsAllocTable():
         return T == FsAllocTable.EMPTY
 
     def findEmptySlot(self, entryID=0):
-        # if the table is full
-        if entryID >= self.size:
-            return None
-        # Get offset from entry ID
-        offset = entryID * self.components
-        # Check data integrity
-        self._verifCHK(offset)
-        # Get current slot information
-        if self._isEmpty(offset):
-            # We have found an empty slot
-            return entryID
-        else:
-            # check next slot
-            return self.findEmptySlot(entryID+1)
+        while True:
+            # if the table is full
+            if entryID >= self.size:
+                return None
+            # Get offset from entry ID
+            offset = entryID * self.components
+            # Check data integrity
+            self._verifCHK(offset)
+            # Get current slot information
+            if self._isEmpty(offset):
+                # We have found an empty slot
+                return entryID
+            # check next slot if previous were not available
+            entryID += 1
 
     def isEmpty(self, entryID):
         # if the table is full

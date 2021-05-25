@@ -6,13 +6,6 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu.fs_data_block import FsDataBlock
 
 class FsGpu():
 
-    TYPES = {0:"EMPTY",
-             1:"SPRITE",
-             2:"RECTANGLE",
-             3:"OVAL",
-             4:"TEXT",
-            }
-
     # ----------------------------------------------------
     # Constructor
     # ----------------------------------------------------
@@ -31,13 +24,27 @@ class FsGpu():
         blockOf7 = self._data.findEmptyBlock(userSize)
         # if not possible to allocate : raise error
         if entryID == None or blockOf7 == None:
-            raise RuntimeError(f"[ERROR] impossible to reserve a buffer. userSize={userSize} entryID={entryID} blockOf7={blockOf7}")
+            dmp = self._data.dumpBlocks()
+            raise RuntimeError(f"[ERROR] impossible to reserve a buffer. userSize={userSize} entryID={entryID} blockOf7={blockOf7}\n"+dmp)
         # Set allocation entry
         self._table.useSlot(entryID, userType, userSize, blockOf7)
         # Set data
         self._data.useBlock(userType, userSize, blockOf7)
         # Return alloc table ID
         return entryID
+
+    # Write data into the file system block
+    def writeBlock(self, entryID, buffer):
+        # get info on allocation table entry
+        info   = self._table.getInfo(entryID)
+        # Retrieve data block offset
+        offset = info["offset"]
+        # Get info from data block and check integrity
+        info2  = self._data.getInfo(offset)
+        if info["length"] != info2["length"] - FsDataBlock.OVERHEAD:
+            raise RuntimeError("[ERROR] CORRUPTION in FS (bad lengths)!")
+        # Write buffer into the data block
+        self._data.writeData(offset, buffer)
 
     # This method releases a previous reserved block
     def release(self, entryID):
@@ -59,11 +66,9 @@ class FsGpu():
             type1   = entry1["type"]
             len1    = entry1["length"]
             offset1 = entry1["offset"]
-            if type1 not in FsGpu.TYPES:
-                type1 = "???"
             warn = ""
             if entry1["type"] != 0:
-                line   = "<Slot #%02d" % (i) + f" - {FsGpu.TYPES[type1]}"
+                line   = "<Slot #%02d" % (i) + f" - {type1}"
                 entry2 = self._data.getInfo(offset1)
                 type2  = entry2["type"]
                 len2   = entry2["length"]
