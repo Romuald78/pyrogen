@@ -11,6 +11,7 @@ from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu.fs_gpu import FsGpu
+from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpubuffer import FsGpuBuffer
 from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
@@ -348,27 +349,24 @@ class PyrogenApp3(pyglet.window.Window):
         # -----------------------------------------------------------------
         # FILE SYSTEM
         # TODO : use the gpu device max texture size property instead of hard-coded size
+        # the height indicates number of pages
+        # the width the size of each 1-height FSGpuBuffer
+        # the static sprites could be stored in the last pages
+        # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
-        # Allocation table
-        sizeW   = 1024
-        sizeH   = 1
-        fsTable = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="u4")
-        buffer1 = np.zeros(sizeW*sizeH*4, np.uint32)
-        fsTable.write(buffer1.tobytes())
-        self._openGlData.set("fsTable", fsTable)
         # Data area
-        sizeW   = 16*1024
-        sizeH   = 1
-        fsData  = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
-        buffer2 = np.zeros(sizeW*sizeH*4, np.float32)
-        fsData.write(buffer2.tobytes())
-        self._openGlData.set("fsData", fsData)
+        sizeW   = 1*1024
+        sizeH   = 16
+        nbComponents = 4
+        texture = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
+
         # instanciate FsGpu
-        self._fsgpu = FsGpu(fsTable, buffer1, fsData, buffer2)
-
+        self._fsgpu = FsGpuBuffer(sizeW)
+        self._fsgpu.display()
         self._fsgpu.test()
-
         exit()
+#        self._fsgpu.test()
+#        exit()
 
 
     # ========================================================
