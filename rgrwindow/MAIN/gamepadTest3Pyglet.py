@@ -11,7 +11,8 @@ from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu.fs_gpu import FsGpu
-from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpubuffer import FsGpuBuffer
+from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpu_buffer import FsGpuBuffer
+from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpu_main import FsGpuMain
 from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
@@ -355,18 +356,22 @@ class PyrogenApp3(pyglet.window.Window):
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
         # Data area
-        sizeW   = 1*1024
-        sizeH   = 16
+        sizeW        = 32*1024
+        sizeH        = 10
         nbComponents = 4
         texture = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
 
         # instanciate FsGpu
-        self._fsgpu = FsGpuBuffer(sizeW)
-        self._fsgpu.display()
-        self._fsgpu.test()
+        self._fsgpu = FsGpuMain(sizeW, sizeH)
+
+        self._fsgpu.test002()
+
         exit()
-#        self._fsgpu.test()
-#        exit()
+
+
+
+
+
 
 
     # ========================================================
