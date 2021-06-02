@@ -174,19 +174,20 @@ class FsGpuMain():
         self.display()
 
         # Compute min, max and average of times
+        summ = round(1000*sum(allocTime), 2)
         mini = round(1000*min(allocTime), 2)
         maxi = round(1000*max(allocTime), 2)
         avrg = round(1000*sum(allocTime)/len(allocTime), 2)
         print(f"ALLOC : N={len(allocTime)}")
-        print(f"    mini={mini}ms maxi={maxi}ms average={avrg}ms")
+        print(f"    sum={summ} mini={mini}ms maxi={maxi}ms average={avrg}ms")
 
         # Compute min, max and average of times
+        summ = round(1000 * sum(freeTime),2)
         mini = round(1000*min(freeTime), 2)
         maxi = round(1000*max(freeTime), 2)
         avrg = round(1000*sum(freeTime)/len(freeTime), 2)
         print(f"FREE  : N={len(freeTime)}")
-        print(f"    mini={mini}ms maxi={maxi}ms average={avrg}ms")
-
+        print(f"    sum={summ} mini={mini}ms maxi={maxi}ms average={avrg}ms")
 
 
     def test001(self):
