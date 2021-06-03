@@ -154,9 +154,46 @@ class FsGpuBuffer():
         self._modified = True
         return True
 
-    # Best allocation process based on free block list : complexity depends on fragmentation
+    # allocate selected block
+    def _allocateSelected(self, userSize, userType, selected, minSize):
+        # Set local variables
+        L1        = minSize
+        offset    = selected
+        blockSize = userSize + FsGpuBuffer.OVERHEAD
+        # Check if the remaining length is at least enough for another small block
+        if L1 - blockSize < FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE:
+            # not enough room : take all the room
+            blockSize = L1
+        # Remove the free block from the list
+        self._removeFreeBlock(offset)
+        # set the data
+        # First set user length and type
+        self._buffer[offset + FsGpuBuffer.SIZE] = userSize
+        self._buffer[offset + FsGpuBuffer.TYPE] = userType
+        # Check if there is at least 4 user bytes available
+        if blockSize + FsGpuBuffer.MIN_SIZE > L1:
+            blockSize = L1
+            self._buffer[offset + FsGpuBuffer.LENG] = blockSize
+            self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
+        else:
+            self._buffer[offset + FsGpuBuffer.LENG] = blockSize
+            self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
+            # Set next block info
+            offset2 = offset + blockSize
+            self._buffer[offset2 + FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
+            self._buffer[offset2 + FsGpuBuffer.LENG] = L1 - blockSize
+            self._buffer[offset2 + FsGpuBuffer.SIZE] = L1 - blockSize
+            self._buffer[offset2 + FsGpuBuffer.CHCK] = self._computeCHK(offset2)
+            # Add the new free block in the list
+            self._addFreeBlock(offset2)
+        # end of process
+        self._modified = True
+        return offset
 
+    # Allocation process based on free block list : complexity depends on fragmentation
     def _allocateBlock2(self, userSize, userType):
+        # Compute blocksize
+        blockSize = userSize + FsGpuBuffer.OVERHEAD
         # Browse each free block from the list
         for offset in self._freeBlocks:
             # Check data integrity
@@ -164,121 +201,25 @@ class FsGpuBuffer():
             # Check it is really free
             if not self._isFree(offset):
                 raise RuntimeError(f"[ERROR] there is an error in the free block list : the block @{offset} ith length={L} is not free !")
-            # First try to merge it with next blocks in order to reduce fragmentation
-            self._mergeNext(offset)
+
             # Get length of this free block
             L1 = self._freeBlocks[offset]
             L2 = int(self._buffer[offset + FsGpuBuffer.LENG])
             if L1 != L2:
                 raise RuntimeError(
                     f"[ERROR] there is an error in the free block list : the block @{offset} : length is not good L1={L1} L2={L2}!")
-            # Now process the allocation itself
-            
-            # then check if size is enough
-            blockSize = userSize + FsGpuBuffer.OVERHEAD
+
             # First check the block size fits
             if blockSize < FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE:
                 blockSize = FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE
+            # If it finally fits, allocate
             if blockSize <= L1:
-                # OK free block found
-                # Check if the remaining length is at least enough for another small block
-                if L1 - blockSize < FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE:
-                    # not enough room : take all the room
-                    blockSize = L1
-                # Remove the free block from the list
-                self._removeFreeBlock(offset)
-                # set the data
-                # First set user length and type
-                self._buffer[offset + FsGpuBuffer.SIZE] = userSize
-                self._buffer[offset + FsGpuBuffer.TYPE] = userType
-                # Check if there is at least 4 user bytes available
-                if blockSize + FsGpuBuffer.MIN_SIZE > L1:
-                    blockSize = L1
-                    self._buffer[offset + FsGpuBuffer.LENG] = blockSize
-                    self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
-                else:
-                    self._buffer[offset + FsGpuBuffer.LENG] = blockSize
-                    self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
-                    # Set next block info
-                    offset2 = offset + blockSize
-                    self._buffer[offset2 + FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
-                    self._buffer[offset2 + FsGpuBuffer.LENG] = L1 - blockSize
-                    self._buffer[offset2 + FsGpuBuffer.SIZE] = L1 - blockSize
-                    self._buffer[offset2 + FsGpuBuffer.CHCK] = self._computeCHK(offset2)
-                    # Add the new free block in the list
-                    self._addFreeBlock(offset2)
-                # end of process
-                self._modified = True
-                return offset
+                return self._allocateSelected(userSize, userType, offset, L1)
+
         # If we reach this part of code, no space was available
-        # either the memory is full or there some free blocks
+        # either the memory is full or there are some free blocks
         # too small for the requested usersize
         return None
-            
-            
-            
-            
-    # Naive allocation process : complexity O(n²)
-    def _allocateBlock(self, userSize, userType, offset=0):
-        while True:
-            # if the table is full
-            if offset >= self.bufferSize:
-                return None
-            # Check data integrity
-            self._verifCHK(offset)
-            # Get current slot information
-            if self._isFree(offset):
-                # We have found an empty block
-                # First try to merge it with next blocks in order to reduce fragmentation
-                self._mergeNext(offset)
-                # Then get current block length (may have been merged)
-                L = int(self._buffer[offset + FsGpuBuffer.LENG])
-                if L <= 0:
-                    raise RuntimeError(f"[ERROR] Bad length 0 @offset={offset} !\n" + self.dump())
-                # then check if size is enough
-                blockSize = userSize + FsGpuBuffer.OVERHEAD
-                # First check the block size fits
-                if blockSize < FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE:
-                    blockSize = FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE
-                if blockSize <= L:
-                    # OK free block found
-                    # Check if the remaining length is at least enough for another small block
-                    if L - blockSize < FsGpuBuffer.OVERHEAD + FsGpuBuffer.MIN_SIZE:
-                        # not enough room : take all the room
-                        blockSize = L
-                    # Remove the free block from the list
-                    self._removeFreeBlock(offset)
-                    # set the data
-                    # First set user length and type
-                    self._buffer[offset + FsGpuBuffer.SIZE] = userSize
-                    self._buffer[offset + FsGpuBuffer.TYPE] = userType
-                    # Check if there is at least 4 user bytes available
-                    if blockSize + FsGpuBuffer.MIN_SIZE > L:
-                        blockSize = L
-                        self._buffer[offset + FsGpuBuffer.LENG] = blockSize
-                        self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
-                    else:
-                        self._buffer[offset + FsGpuBuffer.LENG] = blockSize
-                        self._buffer[offset + FsGpuBuffer.CHCK] = self._computeCHK(offset)
-                        # Set next block info
-                        offset2 = offset + blockSize
-                        self._buffer[offset2 + FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
-                        self._buffer[offset2 + FsGpuBuffer.LENG] = L - blockSize
-                        self._buffer[offset2 + FsGpuBuffer.SIZE] = L - blockSize
-                        self._buffer[offset2 + FsGpuBuffer.CHCK] = self._computeCHK(offset2)
-                        # Add the new free block in the list
-                        self._addFreeBlock(offset2)
-                    # end of process
-                    self._modified = True
-                    return offset
-                else:
-                    # check next slot because current is too small
-                    offset += L
-            else:
-                # Then get current block length
-                L = int(self._buffer[offset + FsGpuBuffer.LENG])
-                # check next slot because current is already allocated
-                offset += L
 
     def _mergeNext(self, offset):
         while True:
@@ -288,7 +229,7 @@ class FsGpuBuffer():
             offset2 = int(offset + L)
             # if the table is full
             if offset2 >= self.bufferSize:
-                return
+                return False
             # Check data integrity of next block
             self._verifCHK(offset2)
             # Check if this new block is empty so we can merge. else we just return
@@ -310,8 +251,9 @@ class FsGpuBuffer():
                 # Update length of current block
                 self._updateFreeBlock(offset, L+L2)
                 # print(f"merged between @{offset} and @{offset2}")
+                return True
             else:
-                return
+                return False
 
     # read data
     def _read(self, offset, length=-1, subOffset=0):
@@ -370,6 +312,27 @@ class FsGpuBuffer():
     # write one value
     def write(self, offset, values, subOffset=0):
         self._write(offset, values, subOffset)
+
+    # Defrag operation
+    # For the moment we only merge free contiguous blocks
+    def defrag(self):
+        # Each time we browse the free block list, if we merge free blocks,
+        # the list is modified while iterating on it : this generates an exception
+        # So to avoid problems, the process could stop the loop after one merge
+        # has been performed. That would mean we would only merge once per frame
+        # in the worst case : this would solve both the modification/iteration issue
+        # and would limit the CPU load : it seems to be a good compromise
+        for offset in self._freeBlocks:
+            # Check data integrity
+            self._verifCHK(offset)
+            # Get current slot information
+            if not self._isFree(offset):
+                raise RuntimeError(f"[ERROR] the block offset {offset} cannot be merged as it is not empty : why is it in the free block list !?")
+            # merge if possible
+            res = self._mergeNext(offset)
+            if res:
+                return True
+        return False
 
 
     # ----------------------------------------------------

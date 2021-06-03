@@ -11,7 +11,7 @@ class FsGpuMain():
     # ----------------------------------------------------
     # CONSTRUCTOR
     # ----------------------------------------------------
-    def __init__(self, pageSize, nbPages):
+    def __init__(self, ctx, pageSize, nbPages):
         # pageShift is the number of bits to code the pageSize
         # 18 means the page size can be 128kB
         self._pageShift = 18
@@ -21,8 +21,12 @@ class FsGpuMain():
         # Each page is a FsGpuBuffer instance
         self._pageSize = pageSize
         self._nbPages  = nbPages
-        # init buffers
+        self._nbComp   = 4
+        # Store gl context
+        self._ctx = ctx
+        # init buffers and texture
         self._clear()
+
 
     # ----------------------------------------------------
     # PROPERTIES
@@ -36,6 +40,9 @@ class FsGpuMain():
     @property
     def totalSize(self):
         return self.pageSize * self.pages
+    @property
+    def texture(self):
+        return self._texture
 
 
     # ----------------------------------------------------
@@ -45,7 +52,7 @@ class FsGpuMain():
         # create buffers
         self._pages = [FsGpuBuffer(self.pageSize) for N in range(self.pages)]
         # Create texture from context
-        # TODO
+        self._texture = self._ctx.texture((self.pageSize, self._nbPages), self._nbComp, dtype="f4")
 
     def _isPageOK(self, pageNum):
         return pageNum >= 0 and pageNum < self.pages
@@ -115,6 +122,35 @@ class FsGpuMain():
 
 
     # ----------------------------------------------------
+    # APP PROCESS
+    # ----------------------------------------------------
+    def update(self, deltaTime):
+        # We will call the page buffer defrag process, and according
+        # to the frame time, we will see how many pages we can defrag in-a-row
+        # TODO : For the moment we only defrag one page
+        for page in self._pages:
+            res = page.defrag()
+            if res:
+                return
+
+    def render(self, deltaTime):
+        # Browse all buffers and check their 'modified' property
+        # copy the buffer data into the texture and call resetModify()
+        # when finished
+        # As there is a way to fill data from the bottom page of the FS
+        # this could be efficient to put all static blocks at the end of the
+        # memory, and the static ones at the beginning
+
+        # TODO : may be force a page to allocate blocks, in order to handle
+        # which pages are willing to be modified or not
+
+        # TODO : this process can be improved by getting the small parts
+        #        of the buffers that have been modified, instead of rewriting
+        #        the whole buffer
+        pass
+
+
+    # ----------------------------------------------------
     # DEBUG
     # ----------------------------------------------------
     def display(self, displayData=False):
@@ -132,104 +168,80 @@ class FsGpuMain():
             out += page.dump(displayData)
         return out
 
+
+    # ----------------------------------------------------
+    # TESTS
+    # ----------------------------------------------------
     def test002(self):
+        TEST_NUMS = [10,20,50,100,200,500,1000,2000,5000,10000,20000]
         BSIZE = 8
         TYPE  = 1
         data = [10 + i for i in range(BSIZE)]
-        allocTime = []
-        freeTime  = []
-        blockIDs  = []
-        # Init buffers
-        self._clear()
-        # Perform N tests
-        for N in range(10000):
+        results = []
+        results.append("Nalloc\tTalloc\tNfree\tTfree")
+        for T in TEST_NUMS:
+            # Init buffers
+            allocTime = []
+            freeTime = []
+            blockIDs = []
+            self._clear()
 
-            # Try to free up some buffers
-            if len(blockIDs) > 10:
-                nbRemove = randint(1,len(blockIDs)//10)
-                for i in range(nbRemove):
-                    # Free block
-                    idRemove = choice(blockIDs)
+            # Perform tests
+            print("------------------------------------")
+            for N in range(T):
+                # Defrag FS
+                self.update(1/60)
+
+                # Try to free up some buffers
+                if len(blockIDs) > 10:
+                    nbRemove = randint(1,len(blockIDs)//10)
+                    for i in range(nbRemove):
+                        # Free block
+                        idRemove = choice(blockIDs)
+                        time0 = time.time()
+                        self.free(idRemove)
+                        time1 = time.time()
+                        # Add allocation time
+                        freeTime.append(time1 - time0)
+                        # Remove id from list
+                        blockIDs.remove(idRemove)
+
+                # Try to allocate some blocks
+                nbAdd = randint(1, 50)
+                for i in range(nbAdd):
+                    # Allocate block
                     time0 = time.time()
-                    self.free(idRemove)
+                    id = self.alloc(BSIZE, TYPE, data=data)
                     time1 = time.time()
                     # Add allocation time
-                    freeTime.append(time1 - time0)
-                    # Remove id from list
-                    blockIDs.remove(idRemove)
+                    allocTime.append(time1-time0)
+                    # Store block ID
+                    blockIDs.append(id)
 
-            # Try to allocate some blocks
-            nbAdd = randint(1, 50)
-            for i in range(nbAdd):
-                # Allocate block
-                time0 = time.time()
-                id = self.alloc(BSIZE, TYPE, data=data)
-                time1 = time.time()
-                # Add allocation time
-                allocTime.append(time1-time0)
-                # Store block ID
-                blockIDs.append(id)
+            # display FS
+            #self.display()
 
-        # display FS
-        self.display()
+            res = ""
+            # Compute min, max and average of times
+            summ = round(1000 * sum(allocTime), 2)
+            mini = round(1000 * min(allocTime), 2)
+            maxi = round(1000 * max(allocTime), 2)
+            avrg = round(1000 * sum(allocTime)/len(allocTime), 2)
+            res += f"{len(allocTime)}\t{summ}\t"
+            print(f"ALLOC : N={len(allocTime)}")
+            print(f"    sum={summ}ms mini={mini}ms maxi={maxi}ms average={avrg}ms")
+            # Compute min, max and average of times
+            summ = round(1000 * sum(freeTime), 2)
+            mini = round(1000 * min(freeTime), 2)
+            maxi = round(1000 * max(freeTime), 2)
+            avrg = round(1000 * sum(freeTime)/len(freeTime), 2)
+            res += f"{len(freeTime)}\t{summ}\t"
+            print(f"FREE  : N={len(freeTime)}")
+            print(f"    sum={summ} mini={mini}ms maxi={maxi}ms average={avrg}ms")
+            res = res.replace(".",",")
+            results.append(res)
 
-        # Compute min, max and average of times
-        summ = round(1000*sum(allocTime), 2)
-        mini = round(1000*min(allocTime), 2)
-        maxi = round(1000*max(allocTime), 2)
-        avrg = round(1000*sum(allocTime)/len(allocTime), 2)
-        print(f"ALLOC : N={len(allocTime)}")
-        print(f"    sum={summ} mini={mini}ms maxi={maxi}ms average={avrg}ms")
-
-        # Compute min, max and average of times
-        summ = round(1000 * sum(freeTime),2)
-        mini = round(1000*min(freeTime), 2)
-        maxi = round(1000*max(freeTime), 2)
-        avrg = round(1000*sum(freeTime)/len(freeTime), 2)
-        print(f"FREE  : N={len(freeTime)}")
-        print(f"    sum={summ} mini={mini}ms maxi={maxi}ms average={avrg}ms")
-
-
-    def test001(self):
-
-        # Create small blocks until the memory is full
-        BSIZE   = 4
-        TYPE    = 1
-        RETESTS = 1
-        data    = [10 + i for i in range(BSIZE)]
-        results = {}
-        for data2 in [None, data]:
-            for NB_SPRITES in [1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192]:
-                for retest in range(RETESTS):
-                    # Clear buffers
-                    self._clear()
-
-                    print(f"TEST : nbSprites={NB_SPRITES} / write={data2==data}")
-                    tps = 0
-                    for i in range(NB_SPRITES):
-                        time0 = time.time()
-                        self.alloc(BSIZE, TYPE, data=data)
-                        time1 = time.time()
-                        tps += time1-time0
-                    #tps = 1000*tps/NB_SPRITES
-                    if not NB_SPRITES in results:
-                        results[NB_SPRITES] = {"alloc":0, "write":0}
-                    if data2 == None:
-                        results[NB_SPRITES]["alloc"] += 1000*tps
-                    else:
-                        results[NB_SPRITES]["write"] += 1000*tps
-
-        for sz in results:
-            w = results[sz]["write"]
-            a = results[sz]["alloc"]
-            if results[sz]["write"] < results[sz]["alloc"]:
-                results[sz]["alloc"] = w / RETESTS
-                results[sz]["write"] = (a - w) / RETESTS
-            else:
-                results[sz]["alloc"] = a / RETESTS
-                results[sz]["write"] = (w - a) / RETESTS
-
-            print(results[sz])
-
-        return
-
+        print()
+        print("====================================")
+        for r in results:
+            print(r)

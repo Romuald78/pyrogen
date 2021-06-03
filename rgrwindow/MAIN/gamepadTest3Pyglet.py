@@ -362,7 +362,7 @@ class PyrogenApp3(pyglet.window.Window):
         texture = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
 
         # instanciate FsGpu
-        self._fsgpu = FsGpuMain(sizeW, sizeH)
+        self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
 
         self._fsgpu.test002()
 
