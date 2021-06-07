@@ -1,8 +1,9 @@
 import math
 import time
+from array import array
 from random import choice, randint
 
-from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpu_buffer import FsGpuBuffer
+from .fsgpu_buffer import FsGpuBuffer
 
 
 class FsGpuMain():
@@ -133,7 +134,7 @@ class FsGpuMain():
             if res:
                 return
 
-    def render(self, deltaTime):
+    def render(self):
         # Browse all buffers and check their 'modified' property
         # copy the buffer data into the texture and call resetModify()
         # when finished
@@ -147,7 +148,20 @@ class FsGpuMain():
         # TODO : this process can be improved by getting the small parts
         #        of the buffers that have been modified, instead of rewriting
         #        the whole buffer
-        pass
+        for i in range(self._nbPages):
+            p = self._pages[i]
+            if p.modified:
+                print(f"Writing page #{i} into the GPU texture")
+                # write this page into the texture
+                self._texture.write(p.data, viewport=(0, i, self.pageSize, 1))
+                # buffer has been updated into the texture
+                # reset flag
+                p.resetModify()
+
+                # DEBUG
+                data = array("f", [0] * self.pageSize * self._nbComp)
+                self._texture.read_into(data)
+                print(data)
 
 
     # ----------------------------------------------------

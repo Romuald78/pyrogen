@@ -1,6 +1,4 @@
 import sys
-from random import random, randint, choice
-
 import numpy as np
 
 
@@ -99,6 +97,7 @@ class FsGpuBuffer():
     def __init__(self, W, H=1, nbComp=4):
         # init buffer
         self._size   = W * H * nbComp
+        self._nbComp = nbComp
         self._buffer = np.zeros(self.bufferSize, np.float32)
         # Set first block as empty
         self._buffer[FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
@@ -116,6 +115,9 @@ class FsGpuBuffer():
     # ----------------------------------------------------
     # PROPERTIES
     # ----------------------------------------------------
+    @property
+    def data(self):
+        return self._buffer
     @property
     def bufferSize(self):
         return self._size
@@ -192,6 +194,8 @@ class FsGpuBuffer():
 
     # Allocation process based on free block list : complexity depends on fragmentation
     def _allocateBlock2(self, userSize, userType):
+        # Get usersize multiple of nbcomps
+        userSize = ((userSize+self._nbComp-1)//self._nbComp)*self._nbComp
         # Compute blocksize
         blockSize = userSize + FsGpuBuffer.OVERHEAD
         # Browse each free block from the list
@@ -314,7 +318,8 @@ class FsGpuBuffer():
         self._write(offset, values, subOffset)
 
     # Defrag operation
-    # For the moment we only merge free contiguous blocks
+    # For the moment we only merge free contiguous blocks,
+    # so this is not a real defrag process yet
     def defrag(self):
         # Each time we browse the free block list, if we merge free blocks,
         # the list is modified while iterating on it : this generates an exception
@@ -328,10 +333,11 @@ class FsGpuBuffer():
             # Get current slot information
             if not self._isFree(offset):
                 raise RuntimeError(f"[ERROR] the block offset {offset} cannot be merged as it is not empty : why is it in the free block list !?")
-            # merge if possible
+            # merge was done, we exit from the defrag process
             res = self._mergeNext(offset)
             if res:
                 return True
+        # We reached the end of the free blocks and none was merged
         return False
 
 

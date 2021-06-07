@@ -42,6 +42,7 @@ class SimpleShader(Shader):
 
             uniform mat4        projection;
             uniform sampler2D   atlasTextureID;
+            uniform sampler2D   fsGpuID;
             uniform usampler2D  atlasInfoID;
 
             // Since geometry shader can take multiple values from a vertex
@@ -59,9 +60,23 @@ class SimpleShader(Shader):
                 // Calculate the half size of the sprites for easier calculations
                 vec2 hsize = size[0] / 2.0;
 
+
+
+                // DEBUG
+                // Get center position from the file system
+                vec2  posFS    = texelFetch( fsGpuID, ivec2(1,0), 0 ).xy;            
+                vec2  sizeFS   = texelFetch( fsGpuID, ivec2(1,0), 0 ).zw;            
+                float angleFS  = texelFetch( fsGpuID, ivec2(2,0), 0 ).x;
+                float textIdFS = texelFetch( fsGpuID, ivec2(2,0), 0 ).y;
+                hsize     += sizeFS.xy / 2.0 - hsize*0.999;
+                center    += posFS           - center*0.999;
+                textIdFS  += tex_id[0]*0.001;
+                angleFS   += rotation[0]*0.001;
+
+
                 // Get texture dimensions
                 vec2  texDim  = textureSize(atlasTextureID,0);
-                uvec4 texBox2 = texelFetch(atlasInfoID, ivec2(int(tex_id[0]),0), 0 );
+                uvec4 texBox2 = texelFetch(atlasInfoID, ivec2(int(textIdFS),0), 0 );
                 vec4  texBox  = vec4(texBox2);
 
                 // Half pixel
@@ -76,7 +91,7 @@ class SimpleShader(Shader):
                 pos1.y = 1.0-pos1.y;
 
                 // Convert the rotation to radians
-                float angle = radians(rotation[0]);
+                float angle = radians(angleFS);
                 // Create a 2d rotation matrix
                 mat2 rot = mat2(
                     cos(angle), sin(angle),

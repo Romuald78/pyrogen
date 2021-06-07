@@ -1,6 +1,5 @@
 import math
 from array import array
-from pathlib import Path
 import random
 
 import numpy as np
@@ -10,9 +9,7 @@ import pyglet
 from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
-from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu.fs_gpu import FsGpu
-from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpu_buffer import FsGpuBuffer
-from pyrogen.src.pyrogen.rgrwindow.MAIN.fsgpu2.fsgpu_main import FsGpuMain
+from pyrogen.src.pyrogen.ecs.file_system.fsgpu_main import FsGpuMain
 from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
@@ -22,8 +19,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 3000
-DEBUG_MOVING_SPRITES = True
+DEBUG_NB_SPRITES     = 1
+DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 
 
@@ -35,7 +32,9 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     CHANNEL_ATLAS_INFO    = 0
     CHANNEL_ATLAS_TEXTURE = 1
+    CHANNEL_FILE_SYSTEM   = 5
     CHANNEL_LIGHTS        = 7
+
 
 
     # ========================================================
@@ -187,7 +186,7 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================================
     # VIEWPORT CONFIGURATION
     # ========================================================================
-    def _setViewPort(self, x0, y0, x1, y1):
+    def __setViewPort(self, x0, y0, x1, y1):
         near = 1
         far  = 0
         matrix = Matrix44.orthogonal_projection(x0, x1, y1, y0, near, far, dtype="f4")
@@ -300,7 +299,7 @@ class PyrogenApp3(pyglet.window.Window):
         # -----------------------------------------------------------------
         # Change view port (for static sprites)
         w, h = self.ctx.screen.size
-        self._setViewPort(0, 0, w, h)
+        self.__setViewPort(0, 0, w, h)
 
         # -----------------------------------------------------------------
         # VERTEX ARRAY OBJECT
@@ -327,6 +326,8 @@ class PyrogenApp3(pyglet.window.Window):
         # - atlas texture (sprites)
         self._program["atlasTextureID"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
         self._program["atlasInfoID"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
+        self._program["fsGpuID"       ] = PyrogenApp3.CHANNEL_FILE_SYSTEM
+
 
         # -----------------------------------------------------------------
         # PREPARE SPRITE DATA
@@ -347,26 +348,30 @@ class PyrogenApp3(pyglet.window.Window):
         # -----------------------------------------------------------------
         # GPU FILE SYSTEM
         # -----------------------------------------------------------------
-        # -----------------------------------------------------------------
-        # FILE SYSTEM
         # TODO : use the gpu device max texture size property instead of hard-coded size
         # the height indicates number of pages
         # the width the size of each 1-height FSGpuBuffer
         # the static sprites could be stored in the last pages
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
-        # Data area
-        sizeW        = 32*1024
-        sizeH        = 10
-        nbComponents = 4
-        texture = self.ctx.texture((sizeW, sizeH), nbComponents, dtype="f4")
-
+        # Data area = Width * Height * number of components (4 float)
+        sizeW        = 1*128
+        sizeH        = 1
         # instanciate FsGpu
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
+        self._openGlData.set("fsGpu", self._fsgpu.texture)
 
-        self._fsgpu.test002()
 
-        exit()
+
+
+        # TODO : remove : just for debug
+        # here we alloc a Sprite block (position(2), size(2), angle(1), texture ID(1))
+        idBlock = self._fsgpu.alloc(6,1)
+        data = [-128, 0, 128, 128, 45, 1]
+        self._fsgpu.writeBlock(idBlock, data)
+
+        #self._fsgpu.test002()
+        #exit()
 
 
 
@@ -378,16 +383,20 @@ class PyrogenApp3(pyglet.window.Window):
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
+        # Process FPS
         self._FPS.append(deltaTime)
         if len(self._FPS)==60:
             print(60/sum(self._FPS))
             self._FPS = []
         self.time += deltaTime
 
+        # Process File system
+        self._fsgpu.update(deltaTime)
+
+        # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
             self._spriteMgr.updateMovingSprites(self.time, (self.width, self.height))
-
         # update viewport if not moving sprites
         if not DEBUG_MOVING_SPRITES:
             squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
@@ -401,13 +410,17 @@ class PyrogenApp3(pyglet.window.Window):
             y0 = int((0.5*math.sin(self.time / 29) + 0.5) * H2) - 48
             w   *= zoom
             h   *= zoom
-            self._setViewPort( x0, y0, x0+w, y0+h )
+            self.__setViewPort( x0, y0, x0+w, y0+h )
+        # TODO ---------------- remove (DEBUG) --------------------------
 
 
     # ========================================================
     # RENDER METHOD
     # ========================================================
     def on_draw(self):
+        # update file system texture
+        self._fsgpu.render()
+
         # Clear buffer with background color
         self.ctx.clear(
             (math.sin(self.time + 0) + 1.0) / 2,
@@ -429,9 +442,10 @@ class PyrogenApp3(pyglet.window.Window):
         # Use atlas from pyglet (algo to make fits the better)
         # max dim 16k*16k
         # see ctx.info for info
-        self._openGlData.get("atlasInfo").use(PyrogenApp3.CHANNEL_ATLAS_INFO)
+        self._openGlData.get("atlasInfo"   ).use(PyrogenApp3.CHANNEL_ATLAS_INFO)
         self._openGlData.get("textureAtlas").use(PyrogenApp3.CHANNEL_ATLAS_TEXTURE)
-        self._openGlData.get("lightInfo").use(PyrogenApp3.CHANNEL_LIGHTS)
+        self._openGlData.get("fsGpu"       ).use(PyrogenApp3.CHANNEL_FILE_SYSTEM)
+        self._openGlData.get("lightInfo"   ).use(PyrogenApp3.CHANNEL_LIGHTS)
 
         # Write sprite info into the vertex array
         # TODO :
@@ -451,8 +465,8 @@ class PyrogenApp3(pyglet.window.Window):
 
         # Process rendering
         with self._query:
-            # TODO | Since we overallocat the buffer (room for 1000 sprites) we
-            # TODO | need to specify how many we actually want to render passing number of vertices.
+            # TODO | Since we overallocat the buffer we need to specify how many
+            # TODO | we actually wantto render passing number of vertices.
             # TODO | Also the mode needs to be the same as the geometry shader input type (points!)
             self._openGlData.get("vao").render(mode=moderngl.POINTS, vertices=self._openGlData.get("nbSprites"))
 
@@ -492,6 +506,8 @@ class PyrogenApp3(pyglet.window.Window):
         pyglet.clock.schedule_interval(self.update, 1/60)
         # Start pyglet app
         pyglet.app.run()
+
+
 
 
 

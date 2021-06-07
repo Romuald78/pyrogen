@@ -18,7 +18,7 @@ class OpenGLData():
             "vertexBuffer" : None,  # vertex buffer
             "vertexData"   : None,  # vertex data copied to the vertex buffer
 
-            "fsTable"      : None,  # Texture buffer used to store the FS allocation table
+            "fsGpu"        : None,  # Texture used to store the FS in GPU
 
             "vao"          : None,  # Vertex array object
             "projMatrix"   : None,  # Projection matrix (used for camera feature)
