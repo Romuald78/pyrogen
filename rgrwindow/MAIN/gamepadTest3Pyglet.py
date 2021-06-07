@@ -19,7 +19,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 1
+DEBUG_NB_SPRITES     = 16
 DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 
@@ -309,14 +309,12 @@ class PyrogenApp3(pyglet.window.Window):
                         self._program,
                         [
                             (self._openGlData.get("vertexBuffer"),
-                             "2f 2f 1f 1f",
-                             "in_position",
-                             "in_size",
-                             "in_rotation",
-                             "in_tex_id"),
+                             "1u",
+                             "in_blockID"),
                         ]
                     )
         self._openGlData.set("vao", vertexArray)
+
 
         # -----------------------------------------------------------------
         # UNIFORMS DATA
@@ -327,23 +325,6 @@ class PyrogenApp3(pyglet.window.Window):
         self._program["atlasTextureID"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
         self._program["atlasInfoID"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
         self._program["fsGpuID"       ] = PyrogenApp3.CHANNEL_FILE_SYSTEM
-
-
-        # -----------------------------------------------------------------
-        # PREPARE SPRITE DATA
-        # -----------------------------------------------------------------
-        # Prepare sprites
-        self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, (self.width,self.height))
-        vd = array("f", self._spriteMgr.genVertex())
-        self._openGlData.set("vertexData", vd)
-        # write into GPU for the first time
-        self._openGlData.get("vertexBuffer").write(vd)
-
-        # -----------------------------------------------------------------
-        # PROFILING
-        # -----------------------------------------------------------------
-        # Query configuration for profiling
-        self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
         # -----------------------------------------------------------------
         # GPU FILE SYSTEM
@@ -361,22 +342,21 @@ class PyrogenApp3(pyglet.window.Window):
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
         self._openGlData.set("fsGpu", self._fsgpu.texture)
 
+        # -----------------------------------------------------------------
+        # PROFILING
+        # -----------------------------------------------------------------
+        # Query configuration for profiling
+        self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
-
-
-        # TODO : remove : just for debug
-        # here we alloc a Sprite block (position(2), size(2), angle(1), texture ID(1))
-        idBlock = self._fsgpu.alloc(6,1)
-        data = [-128, 0, 128, 128, 45, 1]
-        self._fsgpu.writeBlock(idBlock, data)
-
-        #self._fsgpu.test002()
-        #exit()
-
-
-
-
-
+        # -----------------------------------------------------------------
+        # PREPARE SPRITE DATA
+        # -----------------------------------------------------------------
+        # Prepare sprites
+        self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, self._fsgpu)
+        vd = array("l", self._spriteMgr.genVertex())
+        self._openGlData.set("vertexData", vd)
+        # write into GPU for the first time
+        self._openGlData.get("vertexBuffer").write(vd)
 
 
     # ========================================================
@@ -456,7 +436,7 @@ class PyrogenApp3(pyglet.window.Window):
         # moving sprites in the same pages, it will reduce the number of writing operations
         # TODO : debug for the moment, just rewrite in case of MOVING SPRITES
         if DEBUG_MOVING_SPRITES:
-            vd = array("f", self._spriteMgr.genVertex())
+            vd = array("l", self._spriteMgr.genVertex())
             self._openGlData.set("vertexData", vd)
 
         # In all cases, write vertex buffer to GPU
@@ -518,7 +498,7 @@ class SpriteMgr():
     def __init__(self):
         self._sprites = []
 
-    def createRandomSprites(self, loader, N, winSize):
+    def createRandomSprites(self, loader, N, fsgpu):
         squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES),0))
         for i in range(N):
             allIDs  = loader.getAllIds()
@@ -533,7 +513,7 @@ class SpriteMgr():
             # rotation
             angle = 0
             #Sprite creation
-            sprite  = GfxSprite(name,x=x, y=y, angle=angle)
+            sprite  = GfxSprite(name,x=x, y=y, angle=angle, fsgpu=fsgpu)
             self._sprites.append(sprite)
 
     def updateMovingSprites(self, time, winSize):
@@ -553,12 +533,7 @@ class SpriteMgr():
     def genVertex(self):
         for i in range(len(self._sprites)):
             spr = self._sprites[i]
-            yield spr.x
-            yield spr.y
-            yield spr.width
-            yield spr.height
-            yield spr.angle
-            yield spr.textureID
+            yield spr.blockID
 
 
 

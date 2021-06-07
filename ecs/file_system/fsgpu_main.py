@@ -14,11 +14,16 @@ class FsGpuMain():
     # ----------------------------------------------------
     def __init__(self, ctx, pageSize, nbPages):
         # pageShift is the number of bits to code the pageSize
-        # 18 means the page size can be 128kB
+        # 18 means the page size can be 128kB = 32kB texture width
+        # We store the page number on the 14 remaining bits (to stay in unsigned 32 bits range)
         self._pageShift = 18
+        self._maxPages  = 14
         # Either page size cannot be more than 2^pageShift
         if pageSize > math.pow(2, self._pageShift):
             raise RuntimeError(f"[ERROR] bad page size : size={pageSize} is too big. Do not use more than {math.pow(2, self._pageShift)} !")
+        if nbPages > self._maxPages:
+            raise RuntimeError(f"[ERROR] bad NB pages : nbPages={nbPages} maxPages={self._maxPages} pageSize={pageSize} !")
+
         # Each page is a FsGpuBuffer instance
         self._pageSize = pageSize
         self._nbPages  = nbPages
@@ -32,6 +37,9 @@ class FsGpuMain():
     # ----------------------------------------------------
     # PROPERTIES
     # ----------------------------------------------------
+    @property
+    def maxPages(self):
+        return self._maxPages
     @property
     def pages(self):
         return self._nbPages
@@ -59,7 +67,7 @@ class FsGpuMain():
         return pageNum >= 0 and pageNum < self.pages
 
     def _createID(self, offset, page):
-        return (page << self._pageShift) + offset
+        return int((page << self._pageShift) + offset)
 
     def _explodeID(self, id):
         offMask  = (1 << self._pageShift) - 1
@@ -157,11 +165,6 @@ class FsGpuMain():
                 # buffer has been updated into the texture
                 # reset flag
                 p.resetModify()
-
-                # DEBUG
-                data = array("f", [0] * self.pageSize * self._nbComp)
-                self._texture.read_into(data)
-                print(data)
 
 
     # ----------------------------------------------------

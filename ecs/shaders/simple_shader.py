@@ -8,28 +8,35 @@ class SimpleShader(Shader):
     def _getHeader(self):
         return """
             #version 330
-
+            
+            # ------------ FILE SYSTEM ----------------
+            #define PAGE_SIZE_BITS (18)
+            #define PAGE_NUM_BITS  (14)            
+            #define OFFSET_MASK    ((1<<PAGE_SIZE_BITS)-1)
+            #define PAGE_MASK      ( ((1<<PAGE_NUM_BITS )-1) << PAGE_SIZE_BITS )
+            #define OVERHEAD       (1)
 
         """
 
     def getVertex(self):
         return self._getHeader() + """
             // The per sprite input data
-            in vec2 in_position;
-            in vec2 in_size;
-            in float in_rotation;
-            in float in_tex_id;
-
-            out vec2 size;
-            out float rotation;
-            out float tex_id;
+            in int blockID;
+            
+            // Uniforms
+            uniform sampler2D   fsGpuID;
+                
+            // Output                
+            out ivec2 fsCoords;
 
             void main() {
-                // We just pass the values unmodified to the geometry shader
-                gl_Position = vec4(in_position, 0, 1);
-                size = in_size;
-                rotation = in_rotation;
-                tex_id = in_tex_id;
+            
+                // Extract X,Y texture position from offset
+                int fsOffset = (blockID & OFFSET_MASK) >> 2;
+                int fsPage   = (blockID & PAGE_MASK  ) >> PAGE_SIZE_BITS;
+                fsOffset    += OVERHEAD;
+                fsCoords     = ivec2(fsOffset,fsPage);
+                
             }
         """
 
@@ -48,35 +55,37 @@ class SimpleShader(Shader):
             // Since geometry shader can take multiple values from a vertex
             // shader we need to define the inputs from it as arrays.
             // In our instance we just take single values (points)
-            in vec2  size[];
-            in float rotation[];
-            in float tex_id[];
+            in ivec2 fsCoords[];
 
             out vec2 uv;
 
             void main() {
-                // We grab the position value from the vertex shader
-                vec2 center = gl_in[0].gl_Position.xy;
-                // Calculate the half size of the sprites for easier calculations
-                vec2 hsize = size[0] / 2.0;
 
+                // Get coord in the FS texture                
+                ivec2 fsTexelCoords = fsCoords[0];
+                
+                // Get filtering color
+                vec4 colorFS = texelFetch( fsGpuID, fsTexelCoords, 0 );
+                fsTexelCoords.x  += 1;
 
+                // Get position and size
+                vec2 posFS  = texelFetch( fsGpuID, fsTexelCoords, 0 ).xy;
+                vec2 sizeFS = texelFetch( fsGpuID, fsTexelCoords, 0 ).zw;
+                fsTexelCoords.x += 1;
+                
+                // Get angle and texture ID
+                float angleFS  = texelFetch( fsGpuID, fsTexelCoords, 0 ).x;
+                float textIdFS = texelFetch( fsGpuID, fsTexelCoords, 0 ).y;
 
-                // DEBUG
-                // Get center position from the file system
-                vec2  posFS    = texelFetch( fsGpuID, ivec2(1,0), 0 ).xy;            
-                vec2  sizeFS   = texelFetch( fsGpuID, ivec2(1,0), 0 ).zw;            
-                float angleFS  = texelFetch( fsGpuID, ivec2(2,0), 0 ).x;
-                float textIdFS = texelFetch( fsGpuID, ivec2(2,0), 0 ).y;
-                hsize     += sizeFS.xy / 2.0 - hsize*0.999;
-                center    += posFS           - center*0.999;
-                textIdFS  += tex_id[0]*0.001;
-                angleFS   += rotation[0]*0.001;
+                // Set center and halfsize of sprite
+                vec2 center = posFS;
+                vec2 hsize  = sizeFS / 2.0;
 
-
-                // Get texture dimensions
+                // Get whole Atlas dimensions
                 vec2  texDim  = textureSize(atlasTextureID,0);
+                // Get position and size of texture from the atlas
                 uvec4 texBox2 = texelFetch(atlasInfoID, ivec2(int(textIdFS),0), 0 );
+                // Set values from unsigned to signed
                 vec4  texBox  = vec4(texBox2);
 
                 // Half pixel
@@ -85,10 +94,10 @@ class SimpleShader(Shader):
                 // Get texture coords
                 vec2 pos0 = (texBox.xy/texDim.xy);
                 vec2 pos1 = pos0 + (texBox.zw/texDim.xy);
-                pos0   = pos0 + halfPixel;
-                pos1   = pos1 - halfPixel;
-                pos0.y = 1.0-pos0.y;
-                pos1.y = 1.0-pos1.y;
+                pos0      = pos0 + halfPixel;
+                pos1      = pos1 - halfPixel;
+                pos0.y    = 1.0-pos0.y;
+                pos1.y    = 1.0-pos1.y;
 
                 // Convert the rotation to radians
                 float angle = radians(angleFS);
