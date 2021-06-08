@@ -1,6 +1,7 @@
 import math
 from array import array
 import random
+from time import time
 
 import numpy as np
 import moderngl
@@ -19,7 +20,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 16
+DEBUG_NB_SPRITES     = 100000
 DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 
@@ -67,6 +68,7 @@ class PyrogenApp3(pyglet.window.Window):
     def on_key_press(self, symbol, modifiers):
         self.keyboardEvent(symbol, True, modifiers)
         if symbol == pyglet.window.key.ESCAPE:
+            self._fsgpu.display()
             self.close()
     def on_key_release(self, symbol, modifiers):
         self.keyboardEvent(symbol, False, modifiers)
@@ -287,8 +289,8 @@ class PyrogenApp3(pyglet.window.Window):
         # -----------------------------------------------------------------
         # Create sprite information (input data)
         nbComponents = 4
-        spriteInfoSize = (5 + 1) * nbComponents  # 6 values in vertex input
-        nbMaxSprites = DEBUG_NB_SPRITES
+        spriteInfoSize = (1) * nbComponents  # 1 value in vertex input per sprite (the File System id)
+        nbMaxSprites   = DEBUG_NB_SPRITES
         buffer = self.ctx.buffer(reserve=nbMaxSprites * spriteInfoSize)
         self._openGlData.set("spriteSize", spriteInfoSize)
         self._openGlData.set("nbSprites", nbMaxSprites)
@@ -310,7 +312,7 @@ class PyrogenApp3(pyglet.window.Window):
                         [
                             (self._openGlData.get("vertexBuffer"),
                              "1u",
-                             "in_blockID"),
+                             "blockID"),
                         ]
                     )
         self._openGlData.set("vao", vertexArray)
@@ -322,9 +324,9 @@ class PyrogenApp3(pyglet.window.Window):
         # Uniform data to know from which channel the data can be read
         # - atlas texture Information (where are located the sprites)
         # - atlas texture (sprites)
-        self._program["atlasTextureID"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
-        self._program["atlasInfoID"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
-        self._program["fsGpuID"       ] = PyrogenApp3.CHANNEL_FILE_SYSTEM
+        self._program["atlasTextureChan"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
+        self._program["atlasInfoChan"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
+        self._program["fsGpuChan"       ] = PyrogenApp3.CHANNEL_FILE_SYSTEM
 
         # -----------------------------------------------------------------
         # GPU FILE SYSTEM
@@ -336,8 +338,8 @@ class PyrogenApp3(pyglet.window.Window):
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
         # Data area = Width * Height * number of components (4 float)
-        sizeW        = 1*128
-        sizeH        = 1
+        sizeW        = 32*1024
+        sizeH        = 1024
         # instanciate FsGpu
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
         self._openGlData.set("fsGpu", self._fsgpu.texture)
@@ -363,15 +365,19 @@ class PyrogenApp3(pyglet.window.Window):
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
+
+        lap1 = time()
+
         # Process FPS
         self._FPS.append(deltaTime)
-        if len(self._FPS)==60:
-            print(60/sum(self._FPS))
-            self._FPS = []
         self.time += deltaTime
+
+        lap2 = time()
 
         # Process File system
         self._fsgpu.update(deltaTime)
+
+        lap3 = time()
 
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
@@ -393,13 +399,28 @@ class PyrogenApp3(pyglet.window.Window):
             self.__setViewPort( x0, y0, x0+w, y0+h )
         # TODO ---------------- remove (DEBUG) --------------------------
 
+        lap4 = time()
+
+        #print("============= UPDATE =================")
+        #print(f"Frame time computation = {round(1000*(lap2-lap1),2)}ms")
+        #print(f"GPU update             = {round(1000*(lap3-lap2),2)}ms")
+        #print(f"Sprite update          = {round(1000*(lap4-lap3),2)}ms")
+        if len(self._FPS)==120:
+            print(f">>>>>>>>>>>>> FPS = {120/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
+            self._FPS = []
+
 
     # ========================================================
     # RENDER METHOD
     # ========================================================
     def on_draw(self):
+
+        lap1 = time()
+
         # update file system texture
         self._fsgpu.render()
+
+        lap2 = time()
 
         # Clear buffer with background color
         self.ctx.clear(
@@ -427,6 +448,8 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.get("fsGpu"       ).use(PyrogenApp3.CHANNEL_FILE_SYSTEM)
         self._openGlData.get("lightInfo"   ).use(PyrogenApp3.CHANNEL_LIGHTS)
 
+        lap3 = time()
+
         # Write sprite info into the vertex array
         # TODO :
         # next step when using the GPU File System, we will have only block IDs
@@ -443,6 +466,8 @@ class PyrogenApp3(pyglet.window.Window):
         vd = self._openGlData.get("vertexData")
         self._openGlData.get("vertexBuffer").write(vd)
 
+        lap4 = time()
+
         # Process rendering
         with self._query:
             # TODO | Since we overallocat the buffer we need to specify how many
@@ -455,7 +480,13 @@ class PyrogenApp3(pyglet.window.Window):
                 print(self.ctx.error)
                 exit()
 
+        lap5 = time()
 
+        #print("============= RENDER =================")
+        #print(f"GPU Render          = {round(1000*(lap2-lap1),2)}ms")
+        #print(f"GL config 1         = {round(1000*(lap3-lap2),2)}ms")
+        #print(f"Vertex array update = {round(1000*(lap4-lap3),2)}ms")
+        #print(f"Render              = {round(1000*(lap5-lap4),2)}ms")
 
     # TODO
     # def on_resize(self, width, height):
@@ -511,7 +542,7 @@ class SpriteMgr():
             x = (i  % squareSize) * 32
             y = (i // squareSize) * 32
             # rotation
-            angle = 0
+            angle = random.randint(0,360)
             #Sprite creation
             sprite  = GfxSprite(name,x=x, y=y, angle=angle, fsgpu=fsgpu)
             self._sprites.append(sprite)
@@ -529,6 +560,8 @@ class SpriteMgr():
             spr.scale = randI*1.25 + 0.25
             # rotation
             spr.angle = math.sin(time + i) * 180
+            # update sprite (that will generate a writing to the FS
+            spr.update(1/60)
 
     def genVertex(self):
         for i in range(len(self._sprites)):

@@ -286,8 +286,12 @@ class FsGpuBuffer():
         # check the requested length is correct
         if length > S - subOffset:
             raise RuntimeError(f"[WARNING] writing too much to buffer - offset={offset} - writeLen={length} - subOffset={subOffset}",file=sys.stderr)
-        for i in range(length):
-            self._buffer[offset+FsGpuBuffer.OVERHEAD+subOffset+i] = values[i]
+        # Copy data into the buffer (TODO : improve copy speed)
+        start = offset+FsGpuBuffer.OVERHEAD+subOffset
+        end   = start+length
+        self._buffer[start:end] = values
+        # buffer has been modified
+        self._modified = True
 
 
     # ----------------------------------------------------

@@ -17,7 +17,7 @@ class FsGpuMain():
         # 18 means the page size can be 128kB = 32kB texture width
         # We store the page number on the 14 remaining bits (to stay in unsigned 32 bits range)
         self._pageShift = 18
-        self._maxPages  = 14
+        self._maxPages  = math.pow(2, 32-self._pageShift)
         # Either page size cannot be more than 2^pageShift
         if pageSize > math.pow(2, self._pageShift):
             raise RuntimeError(f"[ERROR] bad page size : size={pageSize} is too big. Do not use more than {math.pow(2, self._pageShift)} !")
@@ -32,7 +32,12 @@ class FsGpuMain():
         self._ctx = ctx
         # init buffers and texture
         self._clear()
-
+        # init profiling time
+        self._times = {"alloc" : {"nb": 0, "time": 0},
+                       "free"  : {"nb": 0, "time": 0},
+                       "write" : {"nb": 0, "time": 0},
+                       "page"  : {"nb": 0, "time": 0},
+                       "defrag": {"nb": 0, "time": 0},}
 
     # ----------------------------------------------------
     # PROPERTIES
@@ -84,6 +89,7 @@ class FsGpuMain():
     # in order to find a valid available space (from tge beginning or the end)
     # The page number AND the buffer offset are gathered and returned as a buffer ID
     def alloc(self, userSize, userType, searchFromEnd=False, data=None):
+        lap1 = time.time()
         # Init vars
         step   = 1
         offset = None
@@ -103,6 +109,10 @@ class FsGpuMain():
             page += step
         # Here we have a valid offset, get block ID (page must be -1 because of the loop)
         id = self._createID(offset, page - step)
+        lap2 = time.time()
+        # Store allocation time
+        self._times["alloc"]["nb"  ] += 1
+        self._times["alloc"]["time"] += lap2-lap1
         # Fill the buffer if requested
         if data != None:
             self.writeBlock(id, data)
@@ -110,12 +120,17 @@ class FsGpuMain():
         return id
 
     def free(self, blockID):
+        lap1 = time.time()
         # retrieve block position information
         offset, page = self._explodeID(blockID)
         if not self._isPageOK(page):
             raise RuntimeError(f"[ERROR] bad page value from block ID ! id={blockID} - page={page} - offset={offset}")
         # Now free this block from the memory
         self._pages[page].free(offset)
+        lap2 = time.time()
+        # Store allocation time
+        self._times["free"]["nb"  ] += 1
+        self._times["free"]["time"] += lap2-lap1
 
     def readBlock(self, id):
         # retrieve block position information
@@ -124,25 +139,38 @@ class FsGpuMain():
         return self._pages[page].read(offset)
 
     def writeBlock(self, id, data):
+        lap1 = time.time()
         # retrieve block position information
         offset, page = self._explodeID(id)
         # write block data
         self._pages[page].write(offset, data)
-
+        lap2 = time.time()
+        # Store allocation time
+        self._times["write"]["nb"  ] += 1
+        self._times["write"]["time"] += lap2 - lap1
 
     # ----------------------------------------------------
     # APP PROCESS
     # ----------------------------------------------------
     def update(self, deltaTime):
+        lap1 = time.time()
+
         # We will call the page buffer defrag process, and according
         # to the frame time, we will see how many pages we can defrag in-a-row
         # TODO : For the moment we only defrag one page
-        for page in self._pages:
-            res = page.defrag()
-            if res:
-                return
+        # TODO : improve defrag process (or algorithm underneath) because it drops the perfs !!
+#        for page in self._pages:
+#            res = page.defrag()
+#            if res:
+#                break
+
+        lap2 = time.time()
+        # Store allocation time
+        self._times["defrag"]["nb"]   += 1
+        self._times["defrag"]["time"] += lap2 - lap1
 
     def render(self):
+        lap1 = time.time()
         # Browse all buffers and check their 'modified' property
         # copy the buffer data into the texture and call resetModify()
         # when finished
@@ -157,14 +185,22 @@ class FsGpuMain():
         #        of the buffers that have been modified, instead of rewriting
         #        the whole buffer
         for i in range(self._nbPages):
+            lap1 = time.time()
             p = self._pages[i]
             if p.modified:
-                print(f"Writing page #{i} into the GPU texture")
+                #print(f"[FS GPU] Writing page #{i} into the GPU texture")
                 # write this page into the texture
                 self._texture.write(p.data, viewport=(0, i, self.pageSize, 1))
                 # buffer has been updated into the texture
                 # reset flag
                 p.resetModify()
+            lap2 = time.time()
+            #print(f"PAGE WRITE = {lap2-lap1}")
+
+        lap2 = time.time()
+        # Store allocation time
+        self._times["page"]["nb"]   += 1
+        self._times["page"]["time"] += lap2 - lap1
 
 
     # ----------------------------------------------------
@@ -183,6 +219,16 @@ class FsGpuMain():
             out +=  "=================================================" + "\n"
             i += 1
             out += page.dump(displayData)
+
+        out += "\n"
+        for category in self._times:
+            nb = self._times[category]["nb"]
+            tm = self._times[category]["time"]
+            ratio = "+oo"
+            if nb > 0:
+                ratio = tm/nb
+            out += f"{category} : nb={nb} total={tm} ratio={ratio}\n"
+
         return out
 
 

@@ -24,7 +24,7 @@ class SimpleShader(Shader):
             in int blockID;
             
             // Uniforms
-            uniform sampler2D   fsGpuID;
+            uniform sampler2D   fsGpuChan;
                 
             // Output                
             out ivec2 fsCoords;
@@ -48,9 +48,9 @@ class SimpleShader(Shader):
             layout (triangle_strip, max_vertices = 4) out;
 
             uniform mat4        projection;
-            uniform sampler2D   atlasTextureID;
-            uniform sampler2D   fsGpuID;
-            uniform usampler2D  atlasInfoID;
+            uniform sampler2D   atlasTextureChan;
+            uniform sampler2D   fsGpuChan;
+            uniform usampler2D  atlasInfoChan;
 
             // Since geometry shader can take multiple values from a vertex
             // shader we need to define the inputs from it as arrays.
@@ -65,26 +65,26 @@ class SimpleShader(Shader):
                 ivec2 fsTexelCoords = fsCoords[0];
                 
                 // Get filtering color
-                vec4 colorFS = texelFetch( fsGpuID, fsTexelCoords, 0 );
+                vec4 colorFS = texelFetch( fsGpuChan, fsTexelCoords, 0 );
                 fsTexelCoords.x  += 1;
 
                 // Get position and size
-                vec2 posFS  = texelFetch( fsGpuID, fsTexelCoords, 0 ).xy;
-                vec2 sizeFS = texelFetch( fsGpuID, fsTexelCoords, 0 ).zw;
+                vec2 posFS  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).xy;
+                vec2 sizeFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
                 
                 // Get angle and texture ID
-                float angleFS  = texelFetch( fsGpuID, fsTexelCoords, 0 ).x;
-                float textIdFS = texelFetch( fsGpuID, fsTexelCoords, 0 ).y;
+                float angleFS  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
 
                 // Set center and halfsize of sprite
                 vec2 center = posFS;
                 vec2 hsize  = sizeFS / 2.0;
 
                 // Get whole Atlas dimensions
-                vec2  texDim  = textureSize(atlasTextureID,0);
+                vec2  texDim  = textureSize(atlasTextureChan,0);
                 // Get position and size of texture from the atlas
-                uvec4 texBox2 = texelFetch(atlasInfoID, ivec2(int(textIdFS),0), 0 );
+                uvec4 texBox2 = texelFetch(atlasInfoChan, ivec2(int(textIdFS),0), 0 );
                 // Set values from unsigned to signed
                 vec4  texBox  = vec4(texBox2);
 
@@ -103,13 +103,17 @@ class SimpleShader(Shader):
                 float angle = radians(angleFS);
                 // Create a 2d rotation matrix
                 mat2 rot = mat2(
-                    cos(angle), sin(angle),
+                     cos(angle), sin(angle),
                     -sin(angle), cos(angle)
                 );
 
                 // Get center position and check if it is outside viewport
-                vec4 glCenter = projection * vec4(center, 0.0, 1.0);
-                if (abs(glCenter.x) > 1.05 || abs(glCenter.y) > 1.05){
+                vec4 glMin = projection * vec4(center-hsize, 0.0, 1.0);
+                vec4 glMax = projection * vec4(center+hsize, 0.0, 1.0);
+                if ( (abs(glMin.x) > 1.0 && abs(glMax.x) > 1.0)
+                     || 
+                     (abs(glMin.y) > 1.0 && abs(glMax.y) > 1.0)
+                    ){
                     return;
                 }
 
@@ -147,14 +151,14 @@ class SimpleShader(Shader):
 
     def getFragment(self):
         return self._getHeader() + """
-            uniform sampler2D  atlasTextureID;
+            uniform sampler2D  atlasTextureChan;
 
             in vec2 uv;
             out vec4 fragColor;
 
             void main() {
 
-                vec4 color = texture(atlasTextureID, uv);
+                vec4 color = texture(atlasTextureChan, uv);
                 fragColor = color; 
 
             }
