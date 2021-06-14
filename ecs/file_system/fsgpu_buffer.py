@@ -4,6 +4,13 @@ import numpy as np
 
 class FsGpuBuffer():
 
+    __slots__ = ['_buffer',
+                 '_size',
+                 '_nbComp',
+                 '_modified',
+                 '_freeBlocks',
+                ]
+
     # ----------------------------------------------------
     # CONSTANTS
     # ----------------------------------------------------
@@ -29,7 +36,7 @@ class FsGpuBuffer():
         return v
 
     def _verifCHK(self, offset):
-        if offset > self.bufferSize:
+        if offset > self._size:
             dump = self.dump()
             raise RuntimeError(f"[ERROR] bad block offsey @{offset} \n{dump}")
         v = self._computeCHK(offset)
@@ -98,11 +105,11 @@ class FsGpuBuffer():
         # init buffer
         self._size   = W * H * nbComp
         self._nbComp = nbComp
-        self._buffer = np.zeros(self.bufferSize, np.float32)
+        self._buffer = np.zeros(self._size, np.float32)
         # Set first block as empty
         self._buffer[FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
-        self._buffer[FsGpuBuffer.LENG] = self.bufferSize
-        self._buffer[FsGpuBuffer.SIZE] = self.bufferSize
+        self._buffer[FsGpuBuffer.LENG] = self._size
+        self._buffer[FsGpuBuffer.SIZE] = self._size
         self._buffer[FsGpuBuffer.CHCK] = self._computeCHK(0)
         # Modified
         self._modified = True
@@ -115,14 +122,11 @@ class FsGpuBuffer():
     # ----------------------------------------------------
     # PROPERTIES
     # ----------------------------------------------------
-    @property
-    def data(self):
+    def getData(self):
         return self._buffer
-    @property
-    def bufferSize(self):
+    def getBufferSize(self):
         return self._size
-    @property
-    def modified(self):
+    def isModified(self):
         return self._modified
 
 
@@ -232,7 +236,7 @@ class FsGpuBuffer():
             # Get next block offset
             offset2 = int(offset + L)
             # if the table is full
-            if offset2 >= self.bufferSize:
+            if offset2 >= self._size:
                 return False
             # Check data integrity of next block
             self._verifCHK(offset2)
@@ -360,7 +364,7 @@ class FsGpuBuffer():
             L = int(self._freeBlocks[frOf7])
             msg += f"<FreeBlock @{'0x{0:0{1}X}'.format(frOf7,8)} - L={'0x{0:0{1}X}'.format(L,8)}>" + CR
         # Dump block data
-        while offset < self.bufferSize:
+        while offset < self._size:
             T = int(self._buffer[offset + FsGpuBuffer.TYPE])
             L = int(self._buffer[offset + FsGpuBuffer.LENG])
             U = int(self._buffer[offset + FsGpuBuffer.SIZE])

@@ -29,9 +29,6 @@ def main():
         name = f"image{num}"
         app.addImage(name, f"images/{name}.png", (3, 4, 32, 32), )
 
-    # prepare sprite data etc....
-    #app.prepareData()
-
     # run app
     app.run()
 

@@ -8,6 +8,14 @@ class Gfx():
     def setLoader(loader):
         Gfx._loader = loader
 
+    __slots__ = ['_x', '_y',
+                 '_width', '_height',
+                 '_scale', '_angle',
+                 '_color',
+                 '_fsgpu',
+                 '_writeToFS'
+                ]
+
     def __init__(self,
                  x=0.0,
                  y=0.0,
@@ -31,101 +39,75 @@ class Gfx():
     # ------------------------------------
     #  Position (in pixels)
     # ------------------------------------
-    @property
-    def x(self):
+    def getX(self):
         return self._x
-    @property
-    def y(self):
+    def getY(self):
         return self._y
-    @x.setter
-    def x(self, v):
+    def setX(self, v):
         self._x = v
         self._writeToFS = True
-    @y.setter
-    def y(self, v):
+    def setY(self, v):
         self._y = v
         self._writeToFS = True
 
     # ------------------------------------
     #  Dimensions (in pixels, cannotbe modified directly)
     # ------------------------------------
-    @property
-    def width(self):
+    def getW(self):
         return self._width*self._scale
-    @property
-    def height(self):
+    def getH(self):
         return self._height*self._scale
 
     # ------------------------------------
     # Scale (used to modify dimensions)
     # initial ratio is kept
     # ------------------------------------
-    @property
-    def scale(self):
+    def getScale(self):
         return self._scale
-    @scale.setter
-    def scale(self, v):
+    def setScale(self, v):
         self._scale = v
         self._writeToFS = True
 
     # ------------------------------------
     #  Filter Color (0-255 values)
     # ------------------------------------
-    @property
-    def color(self):
+    def getColor(self):
         return self._color
-    @color.setter
-    def color(self, v):
+    def setColor(self, v):
         self._color = v
         self._writeToFS = True
 
     # ------------------------------------
     #  Angle (in degrees)
     # ------------------------------------
-    @property
-    def angle(self):
+    def getAngle(self):
         return self._angle
-    @angle.setter
-    def angle(self, v):
+    def setAngle(self, v):
         self._angle = v
         self._writeToFS = True
 
     # ------------------------------------
     #  FS GPU
     # ------------------------------------
-    @property
-    def fsgpu(self):
+    def getFsGpu(self):
         return self._fsgpu
-    @property
-    def writeToFS(self):
+    def getWriteToFS(self):
         return self._writeToFS
-    @writeToFS.setter
-    def writeToFS(self, value):
+    def setWriteToFS(self, value):
         self._writeToFS = value
 
 
 
     def __str__(self):
-        return f"x={self.x} y={self.y} w={self.width} h={self.height} scale={self.scale} angle={self.angle} filterColor={self.color}"
+        return f"x={self._x} y={self._y} w={self._width*self._scale} h={self._height*self._scale} scale={self._scale} angle={self._angle} filterColor={self._color}"
 
 
 
 class GfxSprite(Gfx):
 
-    def update(self, deltaTime):
-        # update data into FS if needed
-        if self.writeToFS:
-            # print(f"Writing {self} into FS")
-            alpha = 255
-            if len(self.color) >= 4:
-                alpha = self.color[3]
-            data = [self.color[0], self.color[1] , self.color[2], alpha,
-                    self.x       , self.y        , self.width   , self.height  ,
-                    self.angle   , self.textureID, 0            , 0
-                   ]
-            self.fsgpu.writeBlock(self.blockID, data)
-            self.writeToFS = False
-
+    __slots__ = ['_textureID',
+                 '_blockID'
+                ]
 
     def __init__(self, textureName, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, filterColor=(255,255,255), fsgpu=None):
         # Get texture info from loader
@@ -142,20 +124,32 @@ class GfxSprite(Gfx):
         # Store specific information for this Sprite
         self._textureID = textureID
         # Allocate buffer in the file system for it
-        self._blockID = self.fsgpu.alloc(12, 1)     # TODO : 1 = TYPE SPRITE
+        self._blockID = self._fsgpu.alloc(12, 1)     # TODO : 1 = TYPE SPRITE
         # Update the first time it is created
         self.update(1/60)
 
-    @property
-    def textureID(self):
+    def getTextureID(self):
         return self._textureID
-    @property
-    def blockID(self):
+
+    def getBlockID(self):
         return self._blockID
 
+    def update(self, deltaTime):
+        # update data into FS if needed
+        if self.getWriteToFS():
+            # print(f"Writing {self} into FS")
+            alpha = 255
+            if len(self._color) >= 4:
+                alpha = self._color[3]
+            data = [self._color[0], self._color[1] , self._color[2], alpha,
+                    self._x       , self._y        , self._width   , self._height  ,
+                    self._angle   , self._textureID, 0             , 0
+                   ]
+            self._fsgpu.writeBlock(self.getBlockID(), data)
+            self.setWriteToFS(False)
 
     def __str__(self):
-        return f"<GfxSprite textureId={self.textureID} {super().__str__()}/>"
+        return f"<GfxSprite textureId={self.getTextureID()} blockID={self.getBlockID()} {super().__str__()}/>"
 
 
 

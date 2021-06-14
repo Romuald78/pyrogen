@@ -1,4 +1,6 @@
+import cProfile
 import math
+import os
 from array import array
 import random
 from time import time
@@ -20,8 +22,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 100000
-DEBUG_MOVING_SPRITES = False
+DEBUG_NB_SPRITES     = 400
+DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 
 
@@ -338,11 +340,11 @@ class PyrogenApp3(pyglet.window.Window):
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
         # Data area = Width * Height * number of components (4 float)
-        sizeW        = 32*1024
-        sizeH        = 1024
+        sizeW        = 16*1024
+        sizeH        =  2*1024
         # instanciate FsGpu
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
-        self._openGlData.set("fsGpu", self._fsgpu.texture)
+        self._openGlData.set("fsGpu", self._fsgpu.getTexture())
 
         # -----------------------------------------------------------------
         # PROFILING
@@ -405,8 +407,8 @@ class PyrogenApp3(pyglet.window.Window):
         #print(f"Frame time computation = {round(1000*(lap2-lap1),2)}ms")
         #print(f"GPU update             = {round(1000*(lap3-lap2),2)}ms")
         #print(f"Sprite update          = {round(1000*(lap4-lap3),2)}ms")
-        if len(self._FPS)==120:
-            print(f">>>>>>>>>>>>> FPS = {120/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
+        if len(self._FPS)==60:
+            print(f">>>>>>>>>>>>> FPS = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
             self._FPS = []
 
 
@@ -497,6 +499,14 @@ class PyrogenApp3(pyglet.window.Window):
     # MAIN LOOP
     # ========================================================
     def run(self):
+
+        # DEBUG PERF TEST
+        perfTest()
+        exit()
+
+
+
+
         # compute image atlas from the resource loader
         # TODO use the GPU texture size property instead of hard-coded value
         self._loader.generateImageAtlas(768, 3)
@@ -515,12 +525,78 @@ class PyrogenApp3(pyglet.window.Window):
         self.__prepareData()
         # update loop interval
         pyglet.clock.schedule_interval(self.update, 1/60)
-        # Start pyglet app
+
+        # Start pyglet app and profile it
+        # cProfile.runctx('pyglet.app.run()', globals(), None)
+        cpr = cProfile.Profile()
+        cpr.enable()
         pyglet.app.run()
+        cpr.disable()
 
+        # List methods under supervision
+        watchMethods = ["update",
+                    "updateMovingSprites",
+                    "write",
+                    "_write",
+                    "_verifCHK",
+                    "_computeCHK",
+                    "_explodeID",
+                    "genVertex",
+                    "writeBlock",
+                    ]
+        watchFiles = ["gfx_components",
+        ]
 
+        # Get stats of execution : parse them
+        st = cpr.getstats()
+        out = []
+        for row in st:
+            # Prepare data
+            code   = str(row[0])
+            code   = code.replace("code object ","")
+            code   =  code.replace("built-in ","")
+            code   = code.replace("method ","")
+            code   = code.replace(" objects","")
+            code   = code.replace("<","")
+            code   = code.replace(">","")
+            code   = code.split(",")
+            method = code[0].split(" ")[0]
+            file   = code[1] if len(code)>1 else ""
+            file   = file.replace("file", "")
+            file   = file.replace("\"","")
+            file   = os.path.basename(file).split(".")[0]
+            line   = code[2] if len(code)>2 else ""
+            line   = line.lower().replace("line ","")
+            # store data
+            toBeStored = False
+            for w in method.split(" "):
+                if w in watchMethods:
+                    toBeStored = True
+                    break
+            if file in watchFiles:
+                toBeStored = True
+            if toBeStored:
+                out.append( {"method"    : method,
+                             "file"      : file,
+                             "line"      : line,
+                             "ncalls"    : str(row[1]).replace(".",","),
+                             "tottime"   : str(1000*row[4]).replace(".",","),
+                             "totpercall": str(1000*row[4] / row[1]).replace(".",","),
+                             "cumtime"   : str(1000*row[3]).replace(".",","),
+                             "cumpercall": str(1000*row[3] / row[1]).replace(".",","),
+                             } )
 
-
+        out = sorted( out, key=lambda x:(x["file"],x["method"]) )
+        for o in out:
+            me = o["method"]
+            fi = o["file"]
+            li = o["line"]
+            nc = o["ncalls"]
+            tt = o["tottime"]
+            tp = o["totpercall"]
+            ct = o["cumtime"]
+            cp = o["cumpercall"]
+            print(f"{fi}/{me} ({li})\t{nc}\t{tt}\t{tp}\t{ct}\t{cp}")
 
 
 
@@ -554,36 +630,64 @@ class SpriteMgr():
             randI = (i+1)/len(self._sprites)
             spr = self._sprites[i]
             # Position...
-            spr.x = (math.cos(time*randI*4) * randI * winSize[0]/2) + (winSize[0]/2)
-            spr.y = (math.sin(time*randI*4) * randI * winSize[1]/2) + (winSize[1]/2)
+            spr.setX( (math.cos(time*randI*4) * randI * winSize[0]/2) + (winSize[0]/2) )
+            spr.setY( (math.sin(time*randI*4) * randI * winSize[1]/2) + (winSize[1]/2) )
             # ...and scale (for moving sprites)
-            spr.scale = randI*1.25 + 0.25
+            spr.setScale( randI*1.25 + 0.25 )
             # rotation
-            spr.angle = math.sin(time + i) * 180
+            spr.setAngle( math.sin(time + i) * 180 )
             # update sprite (that will generate a writing to the FS
             spr.update(1/60)
+
+            # TODO ... update properties !!!
+            # TODO ... and then use slots if not efficient enough
 
     def genVertex(self):
         for i in range(len(self._sprites)):
             spr = self._sprites[i]
-            yield spr.blockID
+            yield spr.getBlockID()
 
 
 
 
 
-if __name__ == '__main__':
-    # instanciate Pyrogen application
-    app = PyrogenApp3(width=1280, height=720)
-    # and run it
-    app.run()
+def perfTest():
 
+    # array write time measurement
+    # Big buffer, small writing operation
+    BUFF_SIZE = 1000000
+    DATA_SIZE = 16
+    NB_TESTS  = 1000000
+    # Create data to copy
+    DATA = [10.1+x for x in range(DATA_SIZE)]
+    print(f"NB TESTS           = {NB_TESTS}")
 
+    # Test buffer numpy
+    buffer1 = np.zeros(BUFF_SIZE, np.float32)
+    time1 = 0
+    for n in range(NB_TESTS):
+        # Random offset for the buffer writing
+        start = random.randint(0,BUFF_SIZE-DATA_SIZE)
+        end   = start + DATA_SIZE
+        # Writing operation
+        lap1 = time()
+        buffer1[start:end] = DATA
+        lap2 = time()
+        # Compute time
+        time1 += lap2 - lap1
+    print(f"TOTAL TIME (numpy) = {time1}")
 
-
-
-
-
-
-
-
+    # Test buffer (python list)
+    buffer1 = [0.0,] * DATA_SIZE
+    time1 = 0
+    for n in range(NB_TESTS):
+        # Random offset for the buffer writing
+        start = random.randint(0,BUFF_SIZE-DATA_SIZE)
+        end   = start + DATA_SIZE
+        # Writing operation
+        lap1 = time()
+        buffer1[start:end] = DATA
+        lap2 = time()
+        # Compute time
+        time1 += lap2 - lap1
+    print(f"TOTAL TIME (list)  = {time1}")

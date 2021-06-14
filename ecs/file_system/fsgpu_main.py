@@ -8,6 +8,16 @@ from .fsgpu_buffer import FsGpuBuffer
 
 class FsGpuMain():
 
+    __slots__ = ['_pageShift',
+                 '_maxPages',
+                 '_pageSize',
+                 '_nbPages',
+                 '_nbComp',
+                 '_ctx',
+                 '_times',
+                 '_texture',
+                 '_pages',
+                ]
 
     # ----------------------------------------------------
     # CONSTRUCTOR
@@ -42,20 +52,15 @@ class FsGpuMain():
     # ----------------------------------------------------
     # PROPERTIES
     # ----------------------------------------------------
-    @property
-    def maxPages(self):
+    def getMaxPages(self):
         return self._maxPages
-    @property
-    def pages(self):
+    def getNbPages(self):
         return self._nbPages
-    @property
-    def pageSize(self):
+    def getPageSize(self):
         return self._pageSize
-    @property
-    def totalSize(self):
-        return self.pageSize * self.pages
-    @property
-    def texture(self):
+    def getTotalSize(self):
+        return self._pageSize * self._nbPages
+    def getTexture(self):
         return self._texture
 
 
@@ -64,12 +69,12 @@ class FsGpuMain():
     # ----------------------------------------------------
     def _clear(self):
         # create buffers
-        self._pages = [FsGpuBuffer(self.pageSize) for N in range(self.pages)]
+        self._pages = [FsGpuBuffer(self._pageSize) for N in range(self._nbPages)]
         # Create texture from context
-        self._texture = self._ctx.texture((self.pageSize, self._nbPages), self._nbComp, dtype="f4")
+        self._texture = self._ctx.texture((self._pageSize, self._nbPages), self._nbComp, dtype="f4")
 
     def _isPageOK(self, pageNum):
-        return pageNum >= 0 and pageNum < self.pages
+        return pageNum >= 0 and pageNum < self._nbPages
 
     def _createID(self, offset, page):
         return int((page << self._pageShift) + offset)
@@ -187,10 +192,10 @@ class FsGpuMain():
         for i in range(self._nbPages):
             lap1 = time.time()
             p = self._pages[i]
-            if p.modified:
+            if p.isModified():
                 #print(f"[FS GPU] Writing page #{i} into the GPU texture")
                 # write this page into the texture
-                self._texture.write(p.data, viewport=(0, i, self.pageSize, 1))
+                self._texture.write(p.getData(), viewport=(0, i, self._pageSize, 1))
                 # buffer has been updated into the texture
                 # reset flag
                 p.resetModify()
@@ -215,7 +220,7 @@ class FsGpuMain():
         for page in self._pages:
             out +=  "=================================================" + "\n"
             out +=  "=================    PAGE %02d    =================" % (i)  + "\n"
-            out += f"================= modified={page.modified} =================" + "\n"
+            out += f"================= modified={page.isModified()} =================" + "\n"
             out +=  "=================================================" + "\n"
             i += 1
             out += page.dump(displayData)
