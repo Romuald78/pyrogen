@@ -3,7 +3,7 @@ import math
 import os
 from array import array
 import random
-from time import time
+from time import time as tm
 
 import numpy as np
 import moderngl
@@ -22,7 +22,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 400
+DEBUG_NB_SPRITES     = 1000
 DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 
@@ -367,20 +367,11 @@ class PyrogenApp3(pyglet.window.Window):
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
-
-        lap1 = time()
-
         # Process FPS
         self._FPS.append(deltaTime)
         self.time += deltaTime
-
-        lap2 = time()
-
         # Process File system
         self._fsgpu.update(deltaTime)
-
-        lap3 = time()
-
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
@@ -400,9 +391,6 @@ class PyrogenApp3(pyglet.window.Window):
             h   *= zoom
             self.__setViewPort( x0, y0, x0+w, y0+h )
         # TODO ---------------- remove (DEBUG) --------------------------
-
-        lap4 = time()
-
         #print("============= UPDATE =================")
         #print(f"Frame time computation = {round(1000*(lap2-lap1),2)}ms")
         #print(f"GPU update             = {round(1000*(lap3-lap2),2)}ms")
@@ -416,14 +404,8 @@ class PyrogenApp3(pyglet.window.Window):
     # RENDER METHOD
     # ========================================================
     def on_draw(self):
-
-        lap1 = time()
-
         # update file system texture
         self._fsgpu.render()
-
-        lap2 = time()
-
         # Clear buffer with background color
         self.ctx.clear(
             (math.sin(self.time + 0) + 1.0) / 2,
@@ -450,8 +432,6 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.get("fsGpu"       ).use(PyrogenApp3.CHANNEL_FILE_SYSTEM)
         self._openGlData.get("lightInfo"   ).use(PyrogenApp3.CHANNEL_LIGHTS)
 
-        lap3 = time()
-
         # Write sprite info into the vertex array
         # TODO :
         # next step when using the GPU File System, we will have only block IDs
@@ -468,8 +448,6 @@ class PyrogenApp3(pyglet.window.Window):
         vd = self._openGlData.get("vertexData")
         self._openGlData.get("vertexBuffer").write(vd)
 
-        lap4 = time()
-
         # Process rendering
         with self._query:
             # TODO | Since we overallocat the buffer we need to specify how many
@@ -481,8 +459,6 @@ class PyrogenApp3(pyglet.window.Window):
                 print("[ERROR] during rendering...")
                 print(self.ctx.error)
                 exit()
-
-        lap5 = time()
 
         #print("============= RENDER =================")
         #print(f"GPU Render          = {round(1000*(lap2-lap1),2)}ms")
@@ -500,12 +476,9 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     def run(self):
 
-        # DEBUG PERF TEST
-        perfTest()
-        exit()
-
-
-
+#        # BUFFER DEBUG PERF TEST
+#        perfTest()
+#        exit()
 
         # compute image atlas from the resource loader
         # TODO use the GPU texture size property instead of hard-coded value
@@ -534,7 +507,9 @@ class PyrogenApp3(pyglet.window.Window):
         cpr.disable()
 
         # List methods under supervision
-        watchMethods = ["update",
+        watchMethods = [
+                    "render",
+                    "update",
                     "updateMovingSprites",
                     "write",
                     "_write",
@@ -602,6 +577,11 @@ class PyrogenApp3(pyglet.window.Window):
 
 class SpriteMgr():
 
+    __slots__ = ["_sprites",
+                 "_dbgTime",
+                 "_N",
+                 ]
+
     def __init__(self):
         self._sprites = []
 
@@ -622,25 +602,39 @@ class SpriteMgr():
             #Sprite creation
             sprite  = GfxSprite(name,x=x, y=y, angle=angle, fsgpu=fsgpu)
             self._sprites.append(sprite)
+        self._dbgTime = 0
+        self._N = 0
 
-    def updateMovingSprites(self, time, winSize):
-        seed = 123456789
-        random.seed(seed)
-        for i in range(len(self._sprites)):
+    def updateMovingSprites(self, currentTime, winSize):
+        i = 0
+        while i<len(self._sprites):
+            # init vars
             randI = (i+1)/len(self._sprites)
+            hw = winSize[0]/2
+            hh = winSize[1]/2
+            t  = currentTime * randI * 4
             spr = self._sprites[i]
+
             # Position...
-            spr.setX( (math.cos(time*randI*4) * randI * winSize[0]/2) + (winSize[0]/2) )
-            spr.setY( (math.sin(time*randI*4) * randI * winSize[1]/2) + (winSize[1]/2) )
+            x   = (math.cos(t) * randI * hw) + hw
+            y   = (math.sin(t) * randI * hh) + hh
+            #x = 32 * (i%33)
+            #y = 32 * (i//33)
+            spr.setX( x )
+            spr.setY( y )
+
             # ...and scale (for moving sprites)
-            spr.setScale( randI*1.25 + 0.25 )
+            scl = randI * 1.25 + 0.25
+            spr.setScale( scl )
+
             # rotation
-            spr.setAngle( math.sin(time + i) * 180 )
+            ang =  math.sin(currentTime + i) * 180
+            spr.setAngle( ang )
+
             # update sprite (that will generate a writing to the FS
             spr.update(1/60)
-
-            # TODO ... update properties !!!
-            # TODO ... and then use slots if not efficient enough
+            # increase i
+            i += 1
 
     def genVertex(self):
         for i in range(len(self._sprites)):
@@ -670,9 +664,9 @@ def perfTest():
         start = random.randint(0,BUFF_SIZE-DATA_SIZE)
         end   = start + DATA_SIZE
         # Writing operation
-        lap1 = time()
+        lap1 = tm()
         buffer1[start:end] = DATA
-        lap2 = time()
+        lap2 = tm()
         # Compute time
         time1 += lap2 - lap1
     print(f"TOTAL TIME (numpy) = {time1}")
@@ -685,9 +679,9 @@ def perfTest():
         start = random.randint(0,BUFF_SIZE-DATA_SIZE)
         end   = start + DATA_SIZE
         # Writing operation
-        lap1 = time()
+        lap1 = tm()
         buffer1[start:end] = DATA
-        lap2 = time()
+        lap2 = tm()
         # Compute time
         time1 += lap2 - lap1
     print(f"TOTAL TIME (list)  = {time1}")

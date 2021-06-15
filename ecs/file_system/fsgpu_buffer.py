@@ -1,8 +1,11 @@
+import array
 import sys
 import numpy as np
 
 
 class FsGpuBuffer():
+
+    CHECK_INTEGRITY = False
 
     __slots__ = ['_buffer',
                  '_size',
@@ -29,23 +32,31 @@ class FsGpuBuffer():
     # ----------------------------------------------------
     # INTEGRITY CHECK
     # ----------------------------------------------------
+    def _verifOffset(self, offset):
+        if FsGpuBuffer.CHECK_INTEGRITY and offset > self._size:
+            dump = self.dump()
+            raise RuntimeError(f"[ERROR] bad block offsey @{offset} \n{dump}")
+
     def _computeCHK(self, offset):
-        v  = self._buffer[offset + FsGpuBuffer.LENG]
-        v += self._buffer[offset + FsGpuBuffer.TYPE]
-        v += self._buffer[offset + FsGpuBuffer.SIZE]
+        v = 0
+        if FsGpuBuffer.CHECK_INTEGRITY:
+            v += self._buffer[offset + FsGpuBuffer.LENG]
+            v += self._buffer[offset + FsGpuBuffer.TYPE]
+            v += self._buffer[offset + FsGpuBuffer.SIZE]
         return v
 
     def _verifCHK(self, offset):
-        if offset > self._size:
-            dump = self.dump()
-            raise RuntimeError(f"[ERROR] bad block offsey @{offset} \n{dump}")
-        v = self._computeCHK(offset)
-        if self._buffer[offset + FsGpuBuffer.CHCK] != v:
-            dump = self.dump()
-            raise RuntimeError(f"[ERROR] bad data block integrity (checksum) @offset={offset} \n{dump}")
-        if self._buffer[offset + FsGpuBuffer.SIZE] > self._buffer[offset + FsGpuBuffer.LENG]:
-            dump = self.dump()
-            raise RuntimeError(f"[ERROR] bad data block integrity (lengths) @offset={offset} \n{dump}")
+        if FsGpuBuffer.CHECK_INTEGRITY:
+            # Check offset
+            self._verifOffset(offset)
+            # compute checksum
+            v = self._computeCHK(offset)
+            if self._buffer[offset + FsGpuBuffer.CHCK] != v:
+                dump = self.dump()
+                raise RuntimeError(f"[ERROR] bad data block integrity (checksum) @offset={offset} \n{dump}")
+            if self._buffer[offset + FsGpuBuffer.SIZE] > self._buffer[offset + FsGpuBuffer.LENG]:
+                dump = self.dump()
+                raise RuntimeError(f"[ERROR] bad data block integrity (lengths) @offset={offset} \n{dump}")
 
 
     # ----------------------------------------------------
@@ -105,7 +116,16 @@ class FsGpuBuffer():
         # init buffer
         self._size   = W * H * nbComp
         self._nbComp = nbComp
-        self._buffer = np.zeros(self._size, np.float32)
+
+
+        # [BUFFER]
+        # > NUMPY
+        # self._buffer = np.zeros(self._size, np.float32)
+        # > PYTHON LIST
+        self._buffer = [0.0,] * int(self._size)
+        # > array array
+        #self._buffer = array.array("f", [0.0,] * int(self._size))
+
         # Set first block as empty
         self._buffer[FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
         self._buffer[FsGpuBuffer.LENG] = self._size
@@ -123,7 +143,14 @@ class FsGpuBuffer():
     # PROPERTIES
     # ----------------------------------------------------
     def getData(self):
-        return self._buffer
+        # [BUFFER]
+        # > NUMPY
+        # return self._buffer
+        # > PYTHON LIST (convert to array)
+        return array.array("f", self._buffer)
+        # > array.array
+        # return self._buffer
+
     def getBufferSize(self):
         return self._size
     def isModified(self):
@@ -235,9 +262,6 @@ class FsGpuBuffer():
             L = self._buffer[offset + FsGpuBuffer.LENG]
             # Get next block offset
             offset2 = int(offset + L)
-            # if the table is full
-            if offset2 >= self._size:
-                return False
             # Check data integrity of next block
             self._verifCHK(offset2)
             # Check if this new block is empty so we can merge. else we just return
@@ -293,7 +317,17 @@ class FsGpuBuffer():
         # Copy data into the buffer (TODO : improve copy speed)
         start = offset+FsGpuBuffer.OVERHEAD+subOffset
         end   = start+length
+
+
+        # [BUFFER] copy (loop with array.array?)
+#        i=start
+#        while i<end:
+#            self._buffer[i] = values[i-start]
+#            i += 1
+#        # or copy for ll others (numpy, python list)
         self._buffer[start:end] = values
+
+
         # buffer has been modified
         self._modified = True
 

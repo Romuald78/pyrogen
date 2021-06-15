@@ -74,8 +74,8 @@ class SimpleShader(Shader):
                 fsTexelCoords.x += 1;
                 
                 // Get angle and texture ID
-                float angleFS  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
-                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                float angleFS  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
 
                 // Set center and halfsize of sprite
                 vec2 center = posFS;
