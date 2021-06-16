@@ -21,6 +21,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 
 # ========================================================
 # DEBUG PARAMS
+# 3000 sprites => 20fps
 # ========================================================
 DEBUG_NB_SPRITES     = 1000
 DEBUG_MOVING_SPRITES = True
@@ -518,6 +519,8 @@ class PyrogenApp3(pyglet.window.Window):
                     "_explodeID",
                     "genVertex",
                     "writeBlock",
+                    "getData",
+                    "on_draw"
                     ]
         watchFiles = ["gfx_components",
         ]

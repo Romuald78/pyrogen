@@ -118,13 +118,13 @@ class FsGpuBuffer():
         self._nbComp = nbComp
 
 
-        # [BUFFER]
+        # FEATURE [BUFFER]
         # > NUMPY
         # self._buffer = np.zeros(self._size, np.float32)
         # > PYTHON LIST
-        self._buffer = [0.0,] * int(self._size)
+        # self._buffer = [0.0,] * int(self._size)
         # > array array
-        #self._buffer = array.array("f", [0.0,] * int(self._size))
+        self._buffer = array.array("f", [0.0,] * int(self._size))
 
         # Set first block as empty
         self._buffer[FsGpuBuffer.TYPE] = FsGpuBuffer.FREE
@@ -143,13 +143,14 @@ class FsGpuBuffer():
     # PROPERTIES
     # ----------------------------------------------------
     def getData(self):
-        # [BUFFER]
+
+        # FEATURE [BUFFER]
         # > NUMPY
         # return self._buffer
         # > PYTHON LIST (convert to array)
-        return array.array("f", self._buffer)
+        # return array.array("f", self._buffer)
         # > array.array
-        # return self._buffer
+        return self._buffer
 
     def getBufferSize(self):
         return self._size
@@ -319,7 +320,7 @@ class FsGpuBuffer():
         end   = start+length
 
 
-        # [BUFFER] copy (loop with array.array?)
+        # FEATURE [BUFFER] copy (loop with array.array?)
 #        i=start
 #        while i<end:
 #            self._buffer[i] = values[i-start]

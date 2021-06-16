@@ -1,3 +1,5 @@
+import array
+
 import numpy as np
 
 
@@ -28,12 +30,13 @@ class Gfx():
         self._fsgpu    = fsgpu
         self._writeToFS= True
 
-        # [BUFFER]
+        # FEATURE [BUFFER]
         # > NUMPY
         # self._data = np.zeros(dataSize, np.float32)
         # > PYTHON LIST
         self._data = [0.0,] * dataSize
-
+        # > arraty.array
+        self._data = array.array("f", [0.0, ] * int(dataSize))
 
         # id = 0-1-2-3 for R-G-B-A
         self.setColor(filterColor)
