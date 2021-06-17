@@ -1,6 +1,5 @@
 import array
 import sys
-import numpy as np
 
 
 class FsGpuBuffer():
@@ -111,18 +110,11 @@ class FsGpuBuffer():
     # ----------------------------------------------------
     # CONSTRUCTOR
     # ----------------------------------------------------
-    # TODO : update texture on demand (  texture.write(data, viewport=(0, 0, 50, 50))  )
     def __init__(self, W, H=1, nbComp=4):
         # init buffer
         self._size   = W * H * nbComp
         self._nbComp = nbComp
 
-
-        # FEATURE [BUFFER]
-        # > NUMPY
-        # self._buffer = np.zeros(self._size, np.float32)
-        # > PYTHON LIST
-        # self._buffer = [0.0,] * int(self._size)
         # > array array
         self._buffer = array.array("f", [0.0,] * int(self._size))
 
@@ -131,8 +123,10 @@ class FsGpuBuffer():
         self._buffer[FsGpuBuffer.LENG] = self._size
         self._buffer[FsGpuBuffer.SIZE] = self._size
         self._buffer[FsGpuBuffer.CHCK] = self._computeCHK(0)
+
         # Modified
         self._modified = True
+
         # Keep a list of unused areas
         # dict with offset as key and user size as value
         self._freeBlocks = {}
@@ -143,12 +137,6 @@ class FsGpuBuffer():
     # PROPERTIES
     # ----------------------------------------------------
     def getData(self):
-
-        # FEATURE [BUFFER]
-        # > NUMPY
-        # return self._buffer
-        # > PYTHON LIST (convert to array)
-        # return array.array("f", self._buffer)
         # > array.array
         return self._buffer
 
@@ -288,7 +276,7 @@ class FsGpuBuffer():
             else:
                 return False
 
-    # read data
+    # read data (up to one full block)
     def _read(self, offset, length=-1, subOffset=0):
         # Check integrity for this block
         self._verifCHK(offset)
@@ -305,7 +293,7 @@ class FsGpuBuffer():
         out = self._buffer[start:end]
         return out
 
-    # Write data
+    # Write data (full block)
     def _write(self, offset, values, subOffset=0):
         length = len(values)
         # Check integrity for this block
@@ -315,23 +303,13 @@ class FsGpuBuffer():
         # check the requested length is correct
         if length > S - subOffset:
             raise RuntimeError(f"[WARNING] writing too much to buffer - offset={offset} - writeLen={length} - subOffset={subOffset}",file=sys.stderr)
-        # Copy data into the buffer (TODO : improve copy speed)
+        # prepare copy position into the buffer
         start = offset+FsGpuBuffer.OVERHEAD+subOffset
         end   = start+length
-
-
-        # FEATURE [BUFFER] copy (loop with array.array?)
-#        i=start
-#        while i<end:
-#            self._buffer[i] = values[i-start]
-#            i += 1
-#        # or copy for ll others (numpy, python list)
+        # copy sub array.array
         self._buffer[start:end] = values
-
-
         # buffer has been modified
         self._modified = True
-
 
     # ----------------------------------------------------
     # PUBLIC API
@@ -352,11 +330,11 @@ class FsGpuBuffer():
     def resetModify(self):
         self._modified = False
 
-    # read one value
+    # read values
     def read(self, offset, length=-1, subOffset=0):
         return self._read(offset, length, subOffset)
 
-    # write one value
+    # write values (array.array)
     def write(self, offset, values, subOffset=0):
         self._write(offset, values, subOffset)
 

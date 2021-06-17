@@ -28,7 +28,6 @@ DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 
 
-
 class PyrogenApp3(pyglet.window.Window):
 
     # ========================================================
@@ -118,8 +117,9 @@ class PyrogenApp3(pyglet.window.Window):
         # GL context
         self.ctx  = moderngl.create_context(require=330)
         moderngl_window.activate_context(ctx=self.ctx)
-        for field in self.ctx.info:
-            print(f"{field} : {self.ctx.info[field]}")
+
+        #for field in self.ctx.info:
+        #    print(f"{field} : {self.ctx.info[field]}")
 
         # Gamepad callbacks
         joysticks = pyglet.input.get_joysticks()
@@ -341,9 +341,10 @@ class PyrogenApp3(pyglet.window.Window):
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
         # Data area = Width * Height * number of components (4 float)
-        sizeW        = 16*1024
-        sizeH        =  2*1024
+        sizeW        =  1024
+        sizeH        =  512
         # instanciate FsGpu
+        print(f"Creating FS MAIN with size={sizeW}/{sizeH} 32-bit-float-values")
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
         self._openGlData.set("fsGpu", self._fsgpu.getTexture())
 

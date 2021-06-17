@@ -8,6 +8,8 @@ from .fsgpu_buffer import FsGpuBuffer
 
 class FsGpuMain():
 
+    USE_LOCAL_FS_BUFFER = False
+
     __slots__ = ['_pageShift',
                  '_maxPages',
                  '_pageSize',
@@ -66,7 +68,9 @@ class FsGpuMain():
     def _clear(self):
         # create buffers
         self._pages = [FsGpuBuffer(self._pageSize) for N in range(self._nbPages)]
+
         # Create texture from context
+        print(f"Create texture W={self._pageSize} H={self._nbPages} C={self._nbComp}")
         self._texture = self._ctx.texture((self._pageSize, self._nbPages), self._nbComp, dtype="f4")
 
     def _isPageOK(self, pageNum):
@@ -80,7 +84,6 @@ class FsGpuMain():
         offset   = id & offMask
         page     = (id >> self._pageShift) & self._pageMask
         return (offset, page)
-
 
     # ----------------------------------------------------
     # PUBLIC API
@@ -110,7 +113,7 @@ class FsGpuMain():
         id = self._createID(offset, page - step)
         # Fill the buffer if requested
         if data != None:
-            self.writeBlock(id, data)
+            self.write2Texture(id, data)
         # return block ID
         return id
 
@@ -122,25 +125,39 @@ class FsGpuMain():
         # Now free this block from the memory
         self._pages[page].free(offset)
 
-    def readBlock(self, id):
-        # retrieve block position information
-        offset, page = self._explodeID(id)
-        # return block data
-        return self._pages[page].read(offset)
 
-    def writeBlock(self, id, data):
+    def readFromTexture(self, id):
         # retrieve block position information
         offset, page = self._explodeID(id)
-        # write block data
-        self._pages[page].write(offset, data)
+        # Get data from texture (GPU)
+        gpuData = 0 # TODO : retrieve data from texture directly (is this method useful ?
+                    # TODO : as there is alreasdy the Sprite instances that contain everything ?
+        # Get block data (local CPU buffer)
+        if FsGpuMain.USE_LOCAL_FS_BUFFER :
+            cpuData = self._pages[page].read(offset)
+            # compare gpuData and cpuData to be sure there is no issue somewhere in the dataflow
+            # TODO
+
+    def write2Texture(self, id, data):
+        # retrieve block position information
+        offset, page = self._explodeID(id)
+        # Write into the CPU array.array (that is a CPU copy of the file system)
+        if FsGpuMain.USE_LOCAL_FS_BUFFER :
+            self._pages[page].write(offset, data)
+        # write block data directly to texture
+        offset = (offset + FsGpuBuffer.OVERHEAD)//self._nbComp
+        self._texture.write(data, viewport=(offset, page, len(data)//self._nbComp, 1))
+
 
     # ----------------------------------------------------
     # APP PROCESS
     # ----------------------------------------------------
     def update(self, deltaTime):
-        pass
+
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
         # We will call the page buffer defrag process, and according
         # to the frame time, we will see how many pages we can defrag in-a-row
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
         # TODO : For the moment we only defrag one page
         # TODO : improve defrag process (or algorithm underneath) because it drops the perfs !!
 #        for page in self._pages:
@@ -148,33 +165,36 @@ class FsGpuMain():
 #            if res:
 #                break
 
-
-    def render(self):
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
         # Browse all buffers and check their 'modified' property
         # copy the buffer data into the texture and call resetModify()
         # when finished
+        # ~~~~~~~~~~~~~~~~~~~~~~~~
         # As there is a way to fill data from the bottom page of the FS
         # this could be efficient to put all static blocks at the end of the
         # memory, and the static ones at the beginning
 
         # TODO : may be force a page to allocate blocks, in order to handle
         # which pages are willing to be modified or not
-
         # TODO : this process can be improved by getting the small parts
         #        of the buffers that have been modified, instead of rewriting
         #        the whole buffer
         i = 0
-        while i<self._nbPages:
+        while i < self._nbPages:
             p = self._pages[i]
             if p.isModified():
-                #print(f"[FS GPU] Writing page #{i} into the GPU texture")
+                # print(f"[FS GPU] Writing page #{i} into the GPU texture")
                 # write this page into the texture
-                self._texture.write(p.getData(), viewport=(0, i, self._pageSize, 1))
+#                self._texture.write(p.getData(), viewport=(0, i, self._pageSize, 1))
                 # buffer has been updated into the texture
                 # reset flag
                 p.resetModify()
-            #print(f"PAGE WRITE = {lap2-lap1}")
+            # print(f"PAGE WRITE = {lap2-lap1}")
             i += 1
+
+    def render(self):
+        pass
+
 
     # ----------------------------------------------------
     # DEBUG
