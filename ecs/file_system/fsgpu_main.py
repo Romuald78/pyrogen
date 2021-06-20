@@ -153,6 +153,7 @@ class FsGpuMain():
     # APP PROCESS
     # ----------------------------------------------------
     def update(self, deltaTime):
+        pass
 
         # ~~~~~~~~~~~~~~~~~~~~~~~~
         # We will call the page buffer defrag process, and according
@@ -179,18 +180,18 @@ class FsGpuMain():
         # TODO : this process can be improved by getting the small parts
         #        of the buffers that have been modified, instead of rewriting
         #        the whole buffer
-        i = 0
-        while i < self._nbPages:
-            p = self._pages[i]
-            if p.isModified():
-                # print(f"[FS GPU] Writing page #{i} into the GPU texture")
-                # write this page into the texture
+#        i = 0
+#        while i < self._nbPages:
+#            p = self._pages[i]
+#            if p.isModified():
+#                # print(f"[FS GPU] Writing page #{i} into the GPU texture")
+#                # write this page into the texture
 #                self._texture.write(p.getData(), viewport=(0, i, self._pageSize, 1))
-                # buffer has been updated into the texture
-                # reset flag
-                p.resetModify()
-            # print(f"PAGE WRITE = {lap2-lap1}")
-            i += 1
+#                # buffer has been updated into the texture
+#                # reset flag
+#                p.resetModify()
+#            # print(f"PAGE WRITE = {lap2-lap1}")
+#            i += 1
 
     def render(self):
         pass

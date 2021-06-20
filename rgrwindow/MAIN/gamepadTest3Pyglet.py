@@ -23,7 +23,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # DEBUG PARAMS
 # 3000 sprites => 20fps
 # ========================================================
-DEBUG_NB_SPRITES     = 1000
+DEBUG_NB_SPRITES     = 3000
 DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 
@@ -369,15 +369,17 @@ class PyrogenApp3(pyglet.window.Window):
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
-        # Process FPS
-        self._FPS.append(deltaTime)
+        # increase current application time
         self.time += deltaTime
-        # Process File system
-        self._fsgpu.update(deltaTime)
+
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
             self._spriteMgr.updateMovingSprites(self.time, (self.width, self.height))
+
+        # Process File system
+        self._fsgpu.update(deltaTime)
+
         # update viewport if not moving sprites
         if not DEBUG_MOVING_SPRITES:
             squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
@@ -392,11 +394,9 @@ class PyrogenApp3(pyglet.window.Window):
             w   *= zoom
             h   *= zoom
             self.__setViewPort( x0, y0, x0+w, y0+h )
-        # TODO ---------------- remove (DEBUG) --------------------------
-        #print("============= UPDATE =================")
-        #print(f"Frame time computation = {round(1000*(lap2-lap1),2)}ms")
-        #print(f"GPU update             = {round(1000*(lap3-lap2),2)}ms")
-        #print(f"Sprite update          = {round(1000*(lap4-lap3),2)}ms")
+
+        # Process FPS
+        self._FPS.append(deltaTime)
         if len(self._FPS)==60:
             print(f">>>>>>>>>>>>> FPS = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
             self._FPS = []
@@ -533,7 +533,7 @@ class PyrogenApp3(pyglet.window.Window):
             # Prepare data
             code   = str(row[0])
             code   = code.replace("code object ","")
-            code   =  code.replace("built-in ","")
+            code   = code.replace("built-in ","")
             code   = code.replace("method ","")
             code   = code.replace(" objects","")
             code   = code.replace("<","")
@@ -543,7 +543,7 @@ class PyrogenApp3(pyglet.window.Window):
             file   = code[1] if len(code)>1 else ""
             file   = file.replace("file", "")
             file   = file.replace("\"","")
-            file   = os.path.basename(file).split(".")[0]
+#            file   = os.path.basename(file).split(".")[0]
             line   = code[2] if len(code)>2 else ""
             line   = line.lower().replace("line ","")
             # store data
@@ -554,6 +554,9 @@ class PyrogenApp3(pyglet.window.Window):
                     break
             if file in watchFiles:
                 toBeStored = True
+
+            toBeStored = True
+
             if toBeStored:
                 out.append( {"method"    : method,
                              "file"      : file,
@@ -611,13 +614,13 @@ class SpriteMgr():
 
     def updateMovingSprites(self, currentTime, winSize):
         i = 0
-        while i<len(self._sprites):
+        L = len(self._sprites)
+        for spr in self._sprites:
             # init vars
-            randI = (i+1)/len(self._sprites)
+            randI = (i+1)/L
             hw = winSize[0]/2
             hh = winSize[1]/2
             t  = currentTime * randI * 4
-            spr = self._sprites[i]
 
             # Position...
             x   = (math.cos(t) * randI * hw) + hw

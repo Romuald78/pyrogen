@@ -12,7 +12,7 @@ def main():
 
 
     # Instanciate app
-    app    = PyrogenApp3(width=1280, height=720)
+    app    = PyrogenApp3(width=1920, height=1080)
 
     # Add all images needed for this app
     app.addImage("ball", "images/ball.png")
