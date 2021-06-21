@@ -18,13 +18,26 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 
 
+# ========================================================
+# 21/06/2021 :
+# - dynamic sprites = 3000
+# - static  sprites = 100000
+# both calling the sprite.update() method to check if the
+# array.array must be copied into the GPU texture
+
+# TODO :
+# if we find another solution to avoid calling the update method,
+# we can go up to 1 million static sprites as previously
+# may be, some kind of sprite registering into the "static" group
+# In fact that would be more, removed from the dynamic group
+# to be continued .... (but 100k sprites is ok too ^^)
+# ========================================================
 
 # ========================================================
 # DEBUG PARAMS
-# 3000 sprites => 20fps
 # ========================================================
-DEBUG_NB_SPRITES     = 3000
-DEBUG_MOVING_SPRITES = True
+DEBUG_NB_SPRITES     = 100000
+DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 DEBUG_DISPLAY_FSGPU  = False
 DEBUG_DISPLAY_PERFS  = False
@@ -158,8 +171,6 @@ class PyrogenApp3(pyglet.window.Window):
 
         # Profiling
         self._FPS = []
-        self._FPS2 = []
-        self._fpsRefTime = tm()
 
 
     # ========================================================================
@@ -346,8 +357,8 @@ class PyrogenApp3(pyglet.window.Window):
         # the dynamic ones could be stores in the first pages
         # -----------------------------------------------------------------
         # Data area = Width * Height * number of components (4 float)
-        sizeW        =  1024
-        sizeH        =  512
+        sizeW        =  16*1024
+        sizeH        =  2*1024
         # instanciate FsGpu
         print(f"Creating FS MAIN with size={sizeW}/{sizeH} 32-bit-float-values")
         self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
@@ -451,27 +462,19 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     def update(self, deltaTime):
         # Process FPS
-        #newTime = tm()
-        #delta   = newTime - self._fpsRefTime
         self._FPS.append(deltaTime)
-        #self._FPS2.append(delta)
-        #self._fpsRefTime = newTime
         self._elapsedTime += deltaTime
         if len(self._FPS)==60:
             print(f">>>>>>>>>>>>> FPS pyglet = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
             self._FPS = []
-        #if len(self._FPS2)==60:
-        #    print(f">>>>>>>>>>>>> FPS RGR    = {60/sum(self._FPS2)} <<<<<<<<<<<<<<<<<<<<<<<")
-        #    self._FPS2 = []
-
-        # Debug : difference of deltatime and real deltatime
-        #diff = round(1000 * (deltaTime - delta), 1)
-        #print(diff)
 
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
             self._spriteMgr.updateMovingSprites(self._elapsedTime, (self.width, self.height))
+        else:
+            pass
+#            self._spriteMgr.updateFixedSprites (self._elapsedTime, (self.width, self.height))
 
         # Process File system
         self._fsgpu.update(deltaTime)
@@ -667,6 +670,11 @@ class SpriteMgr():
             spr.update(1/60)
             # increase i for next iteration
             i += 1
+
+    def updateFixedSprites(self, currentTime, winSize):
+        # update all sprites
+        for spr in self._sprites:
+            spr.update(1/60)
 
     def genVertex(self):
         for i in range(len(self._sprites)):
