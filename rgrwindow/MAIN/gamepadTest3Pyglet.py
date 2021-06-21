@@ -23,7 +23,7 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # DEBUG PARAMS
 # 3000 sprites => 20fps
 # ========================================================
-DEBUG_NB_SPRITES     = 3100
+DEBUG_NB_SPRITES     = 3000
 DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 DEBUG_DISPLAY_FSGPU  = False
@@ -590,7 +590,7 @@ class PyrogenApp3(pyglet.window.Window):
         # Prepare GPU stuff
         self.__prepareData()
         # update loop interval
-        pyglet.clock.schedule_interval(self.update, 1/60)
+        pyglet.clock.schedule_interval(self.update, 1/65)
 
         # Start pyglet app and profile it
         # cProfile.runctx('pyglet.app.run()', globals(), None)
