@@ -23,9 +23,11 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # DEBUG PARAMS
 # 3000 sprites => 20fps
 # ========================================================
-DEBUG_NB_SPRITES     = 3000
+DEBUG_NB_SPRITES     = 3100
 DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
+DEBUG_DISPLAY_FSGPU  = False
+DEBUG_DISPLAY_PERFS  = False
 
 
 class PyrogenApp3(pyglet.window.Window):
@@ -70,7 +72,8 @@ class PyrogenApp3(pyglet.window.Window):
     def on_key_press(self, symbol, modifiers):
         self.keyboardEvent(symbol, True, modifiers)
         if symbol == pyglet.window.key.ESCAPE:
-            self._fsgpu.display()
+            if DEBUG_DISPLAY_FSGPU:
+                self._fsgpu.display()
             self.close()
     def on_key_release(self, symbol, modifiers):
         self.keyboardEvent(symbol, False, modifiers)
@@ -147,14 +150,16 @@ class PyrogenApp3(pyglet.window.Window):
         # structure to store all rendering information
         self._openGlData = OpenGLData()
 
-        # init app time
-        self.time = 0
-
         # Init sprite Manager (debug only for the moment)
         self._spriteMgr = SpriteMgr()
 
+        # elapsed time
+        self._elapsedTime = 0
+
         # Profiling
         self._FPS = []
+        self._FPS2 = []
+        self._fpsRefTime = tm()
 
 
     # ========================================================================
@@ -352,7 +357,8 @@ class PyrogenApp3(pyglet.window.Window):
         # PROFILING
         # -----------------------------------------------------------------
         # Query configuration for profiling
-        self._query = self.ctx.query(samples=True, time=True, primitives=True)
+        if DEBUG_DISPLAY_QUERY:
+            self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
         # -----------------------------------------------------------------
         # PREPARE SPRITE DATA
@@ -365,17 +371,107 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.get("vertexBuffer").write(vd)
 
 
+
+
+    def displayPerfs(self, cpr):
+        # List methods under supervision
+        watchMethods = [
+            #                    "render",
+            #                    "update",
+            "updateMovingSprites",
+            #                    "write",
+            #                    "_write",
+            #                    "_verifCHK",
+            #                    "_computeCHK",
+            #                    "_explodeID",
+            #                    "genVertex",
+            #                    "writeBlock",
+            #                    "getData",
+            #                    "on_draw"
+        ]
+        watchFiles = [
+            #            "gfx_components",
+        ]
+        # Get stats of execution : parse them
+        st = cpr.getstats()
+        out = []
+        for row in st:
+            # Prepare data
+            code = str(row[0])
+            code = code.replace("code object ", "")
+            code = code.replace("built-in ", "")
+            code = code.replace("method ", "")
+            code = code.replace(" objects", "")
+            code = code.replace("<", "")
+            code = code.replace(">", "")
+            code = code.split(",")
+            method = code[0].split(" ")[0]
+            file = code[1] if len(code) > 1 else ""
+            file = file.replace("file", "")
+            file = file.replace("\"", "")
+            #            file   = os.path.basename(file).split(".")[0]
+            line = code[2] if len(code) > 2 else ""
+            line = line.lower().replace("line ", "")
+            # store data
+            toBeStored = False
+            for w in method.split(" "):
+                if w in watchMethods:
+                    toBeStored = True
+                    break
+            for w in watchFiles:
+                if w in file:
+                    toBeStored = True
+            #            toBeStored = True
+            if toBeStored:
+                out.append({"method": method,
+                            "file": file,
+                            "line": line,
+                            "ncalls": str(row[1]).replace(".", ","),
+                            "tottime": str(1000 * row[4]).replace(".", ","),
+                            "totpercall": str(1000 * row[4] / row[1]).replace(".", ","),
+                            "cumtime": str(1000 * row[3]).replace(".", ","),
+                            "cumpercall": str(1000 * row[3] / row[1]).replace(".", ","),
+                            })
+        out = sorted(out, key=lambda x: (x["file"], x["method"]))
+        for o in out:
+            me = o["method"]
+            fi = o["file"]
+            li = o["line"]
+            nc = o["ncalls"]
+            tt = o["tottime"]
+            tp = o["totpercall"]
+            ct = o["cumtime"]
+            cp = o["cumpercall"]
+            print(f"{fi}/{me} ({li})\t{nc}\t{tt}\t{tp}\t{ct}\t{cp}")
+
+
+
     # ========================================================
     # UPDATE METHOD
     # ========================================================
     def update(self, deltaTime):
-        # increase current application time
-        self.time += deltaTime
+        # Process FPS
+        #newTime = tm()
+        #delta   = newTime - self._fpsRefTime
+        self._FPS.append(deltaTime)
+        #self._FPS2.append(delta)
+        #self._fpsRefTime = newTime
+        self._elapsedTime += deltaTime
+        if len(self._FPS)==60:
+            print(f">>>>>>>>>>>>> FPS pyglet = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
+            self._FPS = []
+        #if len(self._FPS2)==60:
+        #    print(f">>>>>>>>>>>>> FPS RGR    = {60/sum(self._FPS2)} <<<<<<<<<<<<<<<<<<<<<<<")
+        #    self._FPS2 = []
+
+        # Debug : difference of deltatime and real deltatime
+        #diff = round(1000 * (deltaTime - delta), 1)
+        #print(diff)
 
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
-            self._spriteMgr.updateMovingSprites(self.time, (self.width, self.height))
+            self._spriteMgr.updateMovingSprites(self._elapsedTime, (self.width, self.height))
 
         # Process File system
         self._fsgpu.update(deltaTime)
@@ -384,22 +480,17 @@ class PyrogenApp3(pyglet.window.Window):
         if not DEBUG_MOVING_SPRITES:
             squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
             w, h = self.ctx.screen.size
-            a = math.cos(self.time / 19) * math.cos(3 * self.time / 10)
+            a = math.cos(self._elapsedTime / 19) * math.cos(3 * self._elapsedTime / 10)
             a = a * a
             zoom = 6 * a + 0.25  # zoom beween 0.25 and 6.25
             W2 = (squareSize*32) - w*zoom + 64
             H2 = (squareSize*32) - h*zoom + 64
-            x0 = int((0.5*math.cos(self.time / 31) + 0.5) * W2) - 48
-            y0 = int((0.5*math.sin(self.time / 29) + 0.5) * H2) - 48
+            x0 = int((0.5*math.cos(self._elapsedTime / 31) + 0.5) * W2) - 48
+            y0 = int((0.5*math.sin(self._elapsedTime / 29) + 0.5) * H2) - 48
             w   *= zoom
             h   *= zoom
             self.__setViewPort( x0, y0, x0+w, y0+h )
 
-        # Process FPS
-        self._FPS.append(deltaTime)
-        if len(self._FPS)==60:
-            print(f">>>>>>>>>>>>> FPS = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
-            self._FPS = []
 
 
     # ========================================================
@@ -410,9 +501,9 @@ class PyrogenApp3(pyglet.window.Window):
         self._fsgpu.render()
         # Clear buffer with background color
         self.ctx.clear(
-            (math.sin(self.time + 0) + 1.0) / 2,
-            (math.sin(self.time + 2) + 1.0) / 2,
-            (math.sin(self.time + 3) + 1.0) / 2,
+            (math.sin(self._elapsedTime + 0) + 1.0) / 2,
+            (math.sin(self._elapsedTime + 2) + 1.0) / 2,
+            (math.sin(self._elapsedTime + 3) + 1.0) / 2,
         )
 
         # Set blitting mode
@@ -451,16 +542,16 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.get("vertexBuffer").write(vd)
 
         # Process rendering
-        with self._query:
-            # TODO | Since we overallocat the buffer we need to specify how many
-            # TODO | we actually wantto render passing number of vertices.
-            # TODO | Also the mode needs to be the same as the geometry shader input type (points!)
+        if not DEBUG_DISPLAY_QUERY:
             self._openGlData.get("vao").render(mode=moderngl.POINTS, vertices=self._openGlData.get("nbSprites"))
+        else:
+            with self._query:
+                self._openGlData.get("vao").render(mode=moderngl.POINTS, vertices=self._openGlData.get("nbSprites"))
 
-            if self.ctx.error != "GL_NO_ERROR":
-                print("[ERROR] during rendering...")
-                print(self.ctx.error)
-                exit()
+                if self.ctx.error != "GL_NO_ERROR":
+                    print("[ERROR] during rendering...")
+                    print(self.ctx.error)
+                    exit()
 
         #print("============= RENDER =================")
         #print(f"GPU Render          = {round(1000*(lap2-lap1),2)}ms")
@@ -503,82 +594,16 @@ class PyrogenApp3(pyglet.window.Window):
 
         # Start pyglet app and profile it
         # cProfile.runctx('pyglet.app.run()', globals(), None)
-        cpr = cProfile.Profile()
-        cpr.enable()
+        cpr = None
+        if DEBUG_DISPLAY_PERFS:
+            cpr = cProfile.Profile()
+            cpr.enable()
         pyglet.app.run()
-        cpr.disable()
+        if DEBUG_DISPLAY_PERFS:
+            cpr.disable()
+            self.displayPerfs(cpr)
 
-        # List methods under supervision
-        watchMethods = [
-                    "render",
-                    "update",
-                    "updateMovingSprites",
-                    "write",
-                    "_write",
-                    "_verifCHK",
-                    "_computeCHK",
-                    "_explodeID",
-                    "genVertex",
-                    "writeBlock",
-                    "getData",
-                    "on_draw"
-                    ]
-        watchFiles = ["gfx_components",
-        ]
 
-        # Get stats of execution : parse them
-        st = cpr.getstats()
-        out = []
-        for row in st:
-            # Prepare data
-            code   = str(row[0])
-            code   = code.replace("code object ","")
-            code   = code.replace("built-in ","")
-            code   = code.replace("method ","")
-            code   = code.replace(" objects","")
-            code   = code.replace("<","")
-            code   = code.replace(">","")
-            code   = code.split(",")
-            method = code[0].split(" ")[0]
-            file   = code[1] if len(code)>1 else ""
-            file   = file.replace("file", "")
-            file   = file.replace("\"","")
-#            file   = os.path.basename(file).split(".")[0]
-            line   = code[2] if len(code)>2 else ""
-            line   = line.lower().replace("line ","")
-            # store data
-            toBeStored = False
-            for w in method.split(" "):
-                if w in watchMethods:
-                    toBeStored = True
-                    break
-            if file in watchFiles:
-                toBeStored = True
-
-            toBeStored = True
-
-            if toBeStored:
-                out.append( {"method"    : method,
-                             "file"      : file,
-                             "line"      : line,
-                             "ncalls"    : str(row[1]).replace(".",","),
-                             "tottime"   : str(1000*row[4]).replace(".",","),
-                             "totpercall": str(1000*row[4] / row[1]).replace(".",","),
-                             "cumtime"   : str(1000*row[3]).replace(".",","),
-                             "cumpercall": str(1000*row[3] / row[1]).replace(".",","),
-                             } )
-
-        out = sorted( out, key=lambda x:(x["file"],x["method"]) )
-        for o in out:
-            me = o["method"]
-            fi = o["file"]
-            li = o["line"]
-            nc = o["ncalls"]
-            tt = o["tottime"]
-            tp = o["totpercall"]
-            ct = o["cumtime"]
-            cp = o["cumpercall"]
-            print(f"{fi}/{me} ({li})\t{nc}\t{tt}\t{tp}\t{ct}\t{cp}")
 
 
 
@@ -613,34 +638,34 @@ class SpriteMgr():
         self._N = 0
 
     def updateMovingSprites(self, currentTime, winSize):
+        # prepare local vars
         i = 0
-        L = len(self._sprites)
+        L = len(self._sprites) / 4
+        hw = winSize[0] / 8
+        hh = winSize[1] / 8
+        cw = winSize[0] / 2
+        ch = winSize[1] / 2
+        # update all sprites
         for spr in self._sprites:
-            # init vars
-            randI = (i+1)/L
-            hw = winSize[0]/2
-            hh = winSize[1]/2
-            t  = currentTime * randI * 4
-
-            # Position...
-            x   = (math.cos(t) * randI * hw) + hw
-            y   = (math.sin(t) * randI * hh) + hh
-            #x = 32 * (i%33)
-            #y = 32 * (i//33)
-            spr.setX( x )
-            spr.setY( y )
-
-            # ...and scale (for moving sprites)
+            # sprite specific values
+            randI = i/L
+            t = currentTime * randI
+            # Position (write data into the array.array)
+            x = (math.cos(t) * randI * hw) + cw
+            y = (math.sin(t) * randI * hh) + ch
+            # scale (write data into the array.array)
             scl = randI * 1.25 + 0.25
-            spr.setScale( scl )
-
-            # rotation
+            # Rotation (write data into the array.array)
             ang =  math.sin(currentTime + i) * 180
-            spr.setAngle( ang )
 
-            # update sprite (that will generate a writing to the FS
+            # Set properties
+            spr.setTransform(x, y, ang)
+            spr.setScale(scl)
+
+            # update sprite
+            # (copy the while sprite array.array into the GPU texture)
             spr.update(1/60)
-            # increase i
+            # increase i for next iteration
             i += 1
 
     def genVertex(self):

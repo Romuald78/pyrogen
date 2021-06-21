@@ -62,11 +62,22 @@ class Gfx():
         return self._data[4]
     def getY(self):
         return self._data[4]
+    def getPosition(self):
+        return (self._data[4], self._data[5])
     def setX(self, v):
         self._data[4] = v
         self._writeToFS = True
     def setY(self, v):
         self._data[5] = v
+        self._writeToFS = True
+    def setPosition(self, x, y):
+        self._data[4] = x
+        self._data[5] = y
+        self._writeToFS = True
+    def setTransform(self, x, y, ang):
+        self._data[4] = x
+        self._data[5] = y
+        self._data[9] = ang
         self._writeToFS = True
 
     # ------------------------------------
