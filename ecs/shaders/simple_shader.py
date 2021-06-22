@@ -51,6 +51,7 @@ class SimpleShader(Shader):
             uniform sampler2D   atlasTextureChan;
             uniform sampler2D   fsGpuChan;
             uniform usampler2D  atlasInfoChan;
+            uniform float       systemTime;
 
             // Since geometry shader can take multiple values from a vertex
             // shader we need to define the inputs from it as arrays.
@@ -73,9 +74,28 @@ class SimpleShader(Shader):
                 vec2 sizeFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
                 
-                // Get angle and texture ID
-                float angleFS  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
-                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
+                
+                // TODO handle scale (here .x value)
+                // Get angle and visibility values
+                float angleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                float fsVisOn    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
+                float fsVisTotal = texelFetch( fsGpuChan, fsTexelCoords, 0 ).w;
+                fsTexelCoords.x += 1;
+
+                // Hide element if needed                
+                if (fract(systemTime/fsVisTotal) > (fsVisOn/fsVisTotal)){
+                    return;
+                }
+                
+                // Get autorotate
+                float fsAutoRot = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                fsTexelCoords.x += 1;
+
+                // TODO : retireve the Gfx element type in order to know what to do with data
+
+                // Get texture ID (for SPRITE)
+                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                fsTexelCoords.x += 1;
 
                 // Set center and halfsize of sprite
                 vec2 center = posFS;
@@ -100,7 +120,8 @@ class SimpleShader(Shader):
                 pos1.y    = 1.0-pos1.y;
 
                 // Convert the rotation to radians
-                float angle = radians(angleFS);
+                float angle = angleFS + (systemTime * fsAutoRot);
+                angle = radians(angle);
                 // Create a 2d rotation matrix
                 mat2 rot = mat2(
                      cos(angle), sin(angle),

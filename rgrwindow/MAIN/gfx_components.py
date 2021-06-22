@@ -23,8 +23,11 @@ class Gfx():
                  angle=0.0,
                  scale=1.0,
                  filterColor=(255,255,255),
+                 visOn  = 1.0,
+                 visTot = 1.0,
+                 autoRotate=0.0,
                  fsgpu=None,
-                 dataSize=12,
+                 dataSize=16,
                  blockID=0
                  ):
         self._fsgpu    = fsgpu
@@ -44,8 +47,12 @@ class Gfx():
         # id = 8-9 for SCALE-ANGLE
         self.setScale(scale)
         self.setAngle(angle)
-        # id 10-11 for future use !!
-        # --------------------------
+        # id = 10-11 for visibility ON-TOTAL
+        self.setVisibility(visOn, visTot)
+        # id = 12 for angle auto-rotation
+        self.setAutoRotate(autoRotate)
+        # TODO : add a type for the current Gfx element
+
 
     # ------------------------------------
     #  FS GPU
@@ -64,6 +71,8 @@ class Gfx():
         return self._data[4]
     def getPosition(self):
         return (self._data[4], self._data[5])
+    def getTransform(self):
+        return (self._data[4], self._data[5], self._data[9])
     def setX(self, v):
         self._data[4] = v
         self._writeToFS = True
@@ -125,9 +134,32 @@ class Gfx():
     # ------------------------------------
     def getAngle(self):
         return self._data[9]
+    def getAutoRotate(self):
+        return self._data[12]
     def setAngle(self, v):
         self._data[9] = v
         self._writeToFS = True
+    def setAutoRotate(self, v):
+        self._data[12] = v
+        self._writeToFS = True
+
+
+    # ------------------------------------
+    #  Visibility (ON period and TOTAL period)
+    # ------------------------------------
+    def getVisibility(self):
+        return (self._data[10], self._data[11])
+    def setVisibility(self, on, total):
+        self._data[10] = on
+        self._data[11] = total
+        self._writeToFS = True
+    def show(self):
+        self._data[10] = self._data[11]
+        self._writeToFS = True
+    def hide(self):
+        self._data[10] = 0
+        self._writeToFS = True
+
 
 
 
@@ -147,8 +179,8 @@ class GfxSprite(Gfx):
                  '_fsgpu',
                 ]
 
-    def __init__(self, textureName, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, filterColor=(255,255,255), fsgpu=None):
-        NB_VALUES = 12
+    def __init__(self, textureName, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
+        NB_VALUES = 20
         # Get texture info from loader
         texture   = Gfx._loader.getTextureByName(textureName)
         textureID = texture["id"]
@@ -162,16 +194,16 @@ class GfxSprite(Gfx):
         # Allocate buffer in the file system for it
         self._blockID = fsgpu.alloc(NB_VALUES, 1)     # TODO : 1 = TYPE SPRITE
         # Call parent constructor
-        super().__init__(x, y, w, h, angle, scale, filterColor, fsgpu, NB_VALUES, self._blockID)
+        super().__init__(x, y, w, h, angle, scale, filterColor, visOn, visTot, autoRotate, fsgpu, NB_VALUES, self._blockID)
         # Store specific information for this Sprite (id 10 for textureID)
         self.setTextureID(textureID)
         # Update the first time it is created
         self.update(1/60)
 
     def getTextureID(self):
-        return self._data[10]
+        return self._data[16]
     def setTextureID(self, v):
-        self._data[10]  = v
+        self._data[16]  = v
         self._writeToFS = True
 #        self._fsgpu.writeBlock1(self._blockID, v, 10)
 

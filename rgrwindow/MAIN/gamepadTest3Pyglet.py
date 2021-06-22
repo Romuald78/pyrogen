@@ -50,7 +50,7 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     CHANNEL_ATLAS_INFO    = 0
     CHANNEL_ATLAS_TEXTURE = 1
-    CHANNEL_FILE_SYSTEM   = 5
+    CHANNEL_FILE_SYSTEM   = 2
     CHANNEL_LIGHTS        = 7
 
 
@@ -346,6 +346,8 @@ class PyrogenApp3(pyglet.window.Window):
         self._program["atlasTextureChan"] = PyrogenApp3.CHANNEL_ATLAS_TEXTURE
         self._program["atlasInfoChan"   ] = PyrogenApp3.CHANNEL_ATLAS_INFO
         self._program["fsGpuChan"       ] = PyrogenApp3.CHANNEL_FILE_SYSTEM
+        self._program["systemTime"      ] = 0
+
 
         # -----------------------------------------------------------------
         # GPU FILE SYSTEM
@@ -468,13 +470,16 @@ class PyrogenApp3(pyglet.window.Window):
             print(f">>>>>>>>>>>>> FPS pyglet = {60/sum(self._FPS)} <<<<<<<<<<<<<<<<<<<<<<<")
             self._FPS = []
 
+        # update program uniform system time
+        self._program["systemTime"      ] = self._elapsedTime
+
+
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
             self._spriteMgr.updateMovingSprites(self._elapsedTime, (self.width, self.height))
         else:
-            pass
-#            self._spriteMgr.updateFixedSprites (self._elapsedTime, (self.width, self.height))
+            self._spriteMgr.updateFixedSprites (self._elapsedTime, (self.width, self.height))
 
         # Process File system
         self._fsgpu.update(deltaTime)
@@ -634,8 +639,12 @@ class SpriteMgr():
             y = (i // squareSize) * 32
             # rotation
             angle = random.randint(0,360)
+            autoRot = random.randint(5,135)
+            # visibility PWM
+            total = random.random()*9.0 + 1.0
+            on    = random.random()*total
             #Sprite creation
-            sprite  = GfxSprite(name,x=x, y=y, angle=angle, fsgpu=fsgpu)
+            sprite  = GfxSprite(name,x=x, y=y, angle=angle, visOn=on, visTot=total, autoRotate=autoRot, fsgpu=fsgpu)
             self._sprites.append(sprite)
         self._dbgTime = 0
         self._N = 0
