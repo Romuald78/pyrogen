@@ -36,8 +36,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 100000
-DEBUG_MOVING_SPRITES = False
+DEBUG_NB_SPRITES     = 3000
+DEBUG_MOVING_SPRITES = True
 DEBUG_DISPLAY_QUERY  = False
 DEBUG_DISPLAY_FSGPU  = False
 DEBUG_DISPLAY_PERFS  = False
@@ -643,8 +643,10 @@ class SpriteMgr():
             # visibility PWM
             total = random.random()*9.0 + 1.0
             on    = random.random()*total
+            # filter
+            clr = (128,0,128, 128)
             #Sprite creation
-            sprite  = GfxSprite(name,x=x, y=y, angle=angle, visOn=on, visTot=total, autoRotate=autoRot, fsgpu=fsgpu)
+            sprite  = GfxSprite(name,x=x, y=y, angle=angle, visOn=on, visTot=total, autoRotate=autoRot, fsgpu=fsgpu, filterColor=clr)
             self._sprites.append(sprite)
         self._dbgTime = 0
         self._N = 0
@@ -669,10 +671,12 @@ class SpriteMgr():
             scl = randI * 1.25 + 0.25
             # Rotation (write data into the array.array)
             ang =  math.sin(currentTime + i) * 180
-
+            # Filter Color
+            clr = (64*randI, 256-64*randI, abs(128-32*randI))
             # Set properties
             spr.setTransform(x, y, ang)
             spr.setScale(scl)
+            spr.setColor(clr)
 
             # update sprite
             # (copy the while sprite array.array into the GPU texture)

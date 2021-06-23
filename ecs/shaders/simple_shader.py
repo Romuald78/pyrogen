@@ -59,6 +59,7 @@ class SimpleShader(Shader):
             in ivec2 fsCoords[];
 
             out vec2 uv;
+            out vec4 filterColor;
 
             void main() {
 
@@ -66,7 +67,7 @@ class SimpleShader(Shader):
                 ivec2 fsTexelCoords = fsCoords[0];
                 
                 // Get filtering color
-                vec4 colorFS = texelFetch( fsGpuChan, fsTexelCoords, 0 );
+                filterColor = texelFetch( fsGpuChan, fsTexelCoords, 0 )/255.0;
                 fsTexelCoords.x  += 1;
 
                 // Get position and size
@@ -91,7 +92,7 @@ class SimpleShader(Shader):
                 float fsAutoRot = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
                 fsTexelCoords.x += 1;
 
-                // TODO : retireve the Gfx element type in order to know what to do with data
+                // TODO : retrieve the Gfx element type in order to know what to do with data
 
                 // Get texture ID (for SPRITE)
                 float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
@@ -174,14 +175,43 @@ class SimpleShader(Shader):
         return self._getHeader() + """
             uniform sampler2D  atlasTextureChan;
 
-            in vec2 uv;
+            in  vec2 uv;
+            in  vec4 filterColor;
             out vec4 fragColor;
+
+            vec3 RGB2YUV(vec3 rgb){
+                mat3 matrix = mat3( 0.299,  0.587,  0.114,
+                                   -0.14713, -0.28886,  0.436,
+                                    0.615, -0.51499, -0.10001);
+                vec3 yuv = matrix * rgb;
+                return yuv;
+            }
+
+            vec3 YUV2RGB(vec3 yuv){
+                mat3 matrix = mat3( 1.0,  0.0  ,  1.13983,
+                                    1.0, -0.39465, -0.58060,
+                                    1.0,  2.03211,  0.0   );
+                vec3 rgb = matrix * yuv;
+                return rgb;
+            }
+
 
             void main() {
 
+                // Get pixel color from the texture
                 vec4 color = texture(atlasTextureChan, uv);
-                fragColor = color; 
 
+                // Modify color according to filter                
+                vec3 pixel  = RGB2YUV(color.xyz);                
+                vec3 filter = RGB2YUV(filterColor.xyz);
+                color.x   = pixel.x;
+                color.y   = filter.y;
+                color.z   = filter.z;
+                color.xyz = YUV2RGB(color.xyz);
+                color.a  *= filterColor.a;
+                 
+                // Set pixel color
+                fragColor = color; 
             }
             """
 
