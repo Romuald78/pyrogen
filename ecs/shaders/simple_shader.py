@@ -76,7 +76,9 @@ class SimpleShader(Shader):
                 fsTexelCoords.x += 1;
                 
                 
-                // TODO handle scale (here .x value)
+                // Get scale (here .x value)
+                float scaleFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                
                 // Get angle and visibility values
                 float angleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
                 float fsVisOn    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
@@ -100,7 +102,7 @@ class SimpleShader(Shader):
 
                 // Set center and halfsize of sprite
                 vec2 center = posFS;
-                vec2 hsize  = sizeFS / 2.0;
+                vec2 hsize  = scaleFS * sizeFS / 2.0;
 
                 // Get whole Atlas dimensions
                 vec2  texDim  = textureSize(atlasTextureChan,0);
@@ -179,9 +181,84 @@ class SimpleShader(Shader):
             in  vec4 filterColor;
             out vec4 fragColor;
 
+            float max3(vec3 v){
+                return max(max(v.x, v.y), v.z);
+            }
+            float min3(vec3 v){
+                return min(min(v.x, v.y), v.z);
+            }
+
+            vec3 RGB2HSL(vec3 rgb){
+                float maxi  = max3(rgb);
+                float mini  = min3(rgb);
+                float delta = maxi - mini;            
+                
+                float L = (maxi + mini) * 0.5;
+                float S = 0.0;
+                float H = 0.0;
+                if (delta != 0.0){
+                    S = delta/(1-abs(2*L-1));
+                    if (maxi == rgb.r){
+                        float tmp = (rgb.g-rgb.b) / delta;
+                        tmp = fract(tmp/6.0) * 6.0;
+                        H = 60 * tmp;
+                    }
+                    else if(maxi == rgb.g){
+                        float tmp = (rgb.b-rgb.r) / delta;
+                        tmp = tmp + 2.0;
+                        H = 60 * tmp;
+                    }
+                    else if(maxi == rgb.b){
+                        float tmp = (rgb.r-rgb.g) / delta;
+                        tmp = tmp + 4.0;
+                        H = 60 * tmp;
+                    }
+                }
+                                
+                return vec3(H,S,L);
+            }
+            
+            vec3 HSL2RGB(vec3 hsl){
+                float H = hsl.x;
+                float S = hsl.y;
+                float L = hsl.z;
+                float C = (1-abs(2*L-1))*S;
+                float tmp = H/60;
+                tmp = fract(tmp/2.0) * 2.0;
+                float X = (1-abs(tmp-1))*C;
+                float m = L-(C/2.0);
+                vec3 rgb = vec3(0.0);
+                if(H>=0.0 && H<60.0){
+                    rgb.r = C;
+                    rgb.g = X;
+                }
+                else if (H<120.0){
+                    rgb.r = X;
+                    rgb.g = X;                
+                }
+                else if (H<180.0){
+                    rgb.g = C;
+                    rgb.b = X;
+                }
+                else if (H<240.0){
+                    rgb.g = X;
+                    rgb.b = C;
+                }
+                else if (H<300.0){
+                    rgb.r = X;
+                    rgb.b = C;
+                }
+                else if (H<360.0){
+                    rgb.r = C;
+                    rgb.b = X;                
+                }
+                rgb += m;
+                return rgb;
+            }
+
             vec3 RGB2YUV(vec3 rgb){
                 mat3 matrix = mat3( 0.299,  0.587,  0.114,
-                                   -0.14713, -0.28886,  0.436,
+                                   -0.14714, -0.28886,  0.436,
                                     0.615, -0.51499, -0.10001);
                 vec3 yuv = matrix * rgb;
                 return yuv;
@@ -202,12 +279,20 @@ class SimpleShader(Shader):
                 vec4 color = texture(atlasTextureChan, uv);
 
                 // Modify color according to filter                
-                vec3 pixel  = RGB2YUV(color.xyz);                
-                vec3 filter = RGB2YUV(filterColor.xyz);
-                color.x   = pixel.x;
-                color.y   = filter.y;
-                color.z   = filter.z;
-                color.xyz = YUV2RGB(color.xyz);
+                vec3 pixel  = RGB2HSL(color.xyz);                
+                vec3 filter = RGB2HSL(filterColor.xyz);
+                // Lightness
+                pixel.z = (pixel.z * filter.z);                
+                // Hue
+                pixel.x = filter.x;
+                // Saturation
+                pixel.y = max(pixel.y, filter.y);
+                // Transform to RGB back
+                pixel = HSL2RGB(pixel);
+                
+                color.xyz = pixel;
+                
+                // Handle Transparency
                 color.a  *= filterColor.a;
                  
                 // Set pixel color

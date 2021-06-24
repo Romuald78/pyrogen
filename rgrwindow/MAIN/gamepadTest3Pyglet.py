@@ -509,9 +509,9 @@ class PyrogenApp3(pyglet.window.Window):
         self._fsgpu.render()
         # Clear buffer with background color
         self.ctx.clear(
-            (math.sin(self._elapsedTime + 0) + 1.0) / 2,
-            (math.sin(self._elapsedTime + 2) + 1.0) / 2,
-            (math.sin(self._elapsedTime + 3) + 1.0) / 2,
+            (math.sin(self._elapsedTime + 0) + 1.0) / 4 + 0.5,
+            (math.sin(self._elapsedTime + 2) + 1.0) / 4 + 0.5,
+            (math.sin(self._elapsedTime + 3) + 1.0) / 4 + 0.5,
         )
 
         # Set blitting mode
@@ -644,7 +644,7 @@ class SpriteMgr():
             total = random.random()*9.0 + 1.0
             on    = random.random()*total
             # filter
-            clr = (128,0,128, 128)
+            clr = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
             #Sprite creation
             sprite  = GfxSprite(name,x=x, y=y, angle=angle, visOn=on, visTot=total, autoRotate=autoRot, fsgpu=fsgpu, filterColor=clr)
             self._sprites.append(sprite)
@@ -659,6 +659,7 @@ class SpriteMgr():
         hh = winSize[1] / 8
         cw = winSize[0] / 2
         ch = winSize[1] / 2
+        clr = [0,0,0]
         # update all sprites
         for spr in self._sprites:
             # sprite specific values
@@ -668,18 +669,14 @@ class SpriteMgr():
             x = (math.cos(t) * randI * hw) + cw
             y = (math.sin(t) * randI * hh) + ch
             # scale (write data into the array.array)
-            scl = randI * 1.25 + 0.25
+            scl = randI * 0.4 + 0.25
             # Rotation (write data into the array.array)
             ang =  math.sin(currentTime + i) * 180
-            # Filter Color
-            clr = (64*randI, 256-64*randI, abs(128-32*randI))
             # Set properties
             spr.setTransform(x, y, ang)
             spr.setScale(scl)
-            spr.setColor(clr)
-
             # update sprite
-            # (copy the while sprite array.array into the GPU texture)
+            # (copy the whole sprite array.array into the GPU texture)
             spr.update(1/60)
             # increase i for next iteration
             i += 1

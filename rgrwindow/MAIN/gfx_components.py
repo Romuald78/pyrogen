@@ -3,6 +3,11 @@ import array
 
 class Gfx():
 
+    HEADER_SIZE = 16
+    TYPE_SPRITE = 1
+    TYPE_TEXT   = 2
+
+
     _loader = None
 
     @staticmethod
@@ -27,7 +32,7 @@ class Gfx():
                  visTot = 1.0,
                  autoRotate=0.0,
                  fsgpu=None,
-                 dataSize=16,
+                 dataSize=HEADER_SIZE,
                  blockID=0
                  ):
         self._fsgpu    = fsgpu
@@ -52,6 +57,7 @@ class Gfx():
         # id = 12 for angle auto-rotation
         self.setAutoRotate(autoRotate)
         # TODO : add a type for the current Gfx element
+        # remaining ids = 13-14-15
 
 
     # ------------------------------------
@@ -161,8 +167,9 @@ class Gfx():
         self._writeToFS = True
 
 
-
-
+    # ------------------------------------
+    #  UPDATE (copy buffer into the GPU texture
+    # ------------------------------------
     def update(self, deltaTime):
         pass
         # update data into FS if needed
@@ -180,19 +187,19 @@ class GfxSprite(Gfx):
                 ]
 
     def __init__(self, textureName, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
-        NB_VALUES = 20
+        NB_VALUES = Gfx.HEADER_SIZE + 4
         # Get texture info from loader
         texture   = Gfx._loader.getTextureByName(textureName)
         textureID = texture["id"]
         w         = texture["w"]
         h         = texture["h"]
-        # if width or height is not filled, use the texture ones
+        # if width or height is not filled, use the texture dimensions
         if width > 0:
             w = width
         if height > 0:
             h = height
         # Allocate buffer in the file system for it
-        self._blockID = fsgpu.alloc(NB_VALUES, 1)     # TODO : 1 = TYPE SPRITE
+        self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_SPRITE)
         # Call parent constructor
         super().__init__(x, y, w, h, angle, scale, filterColor, visOn, visTot, autoRotate, fsgpu, NB_VALUES, self._blockID)
         # Store specific information for this Sprite (id 10 for textureID)
@@ -210,6 +217,49 @@ class GfxSprite(Gfx):
 
     def __str__(self):
         return f"<GfxSprite textureId={self.getTextureID()} blockID={self.getBlockID()} {super().__str__()}/>"
+
+
+
+class GfxText(Gfx):
+
+    __slots__ = ['_blockID',
+                 '_fsgpu',
+                 '_message',
+                ]
+
+#    def __init__(self, message, fontName, size=12, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
+#        # Specific Data for text element
+#        # - font id (1)
+#        # - font size (1)
+#        # - message length (1)
+#        # - message data (ascii) (L)
+#        # TODO : if message data is too small to contain the new message, re-allocate a new block
+#        # TODO : and free this one : do not forget to update the blockID property (add a setter for it ?)
+#
+#        # Get message length
+#        L = len(message)
+#        NB_VALUES = Gfx.HEADER_SIZE + 3 + L
+
+
+#        # Get texture info from loader
+#
+#        # Allocate buffer in the file system for it
+#        self._blockID = fsgpu.alloc(NB_VALUES, 1)     # TODO : 1 = TYPE SPRITE
+#        # Call parent constructor
+#        super().__init__(x, y, w, h, angle, scale, filterColor, visOn, visTot, autoRotate, fsgpu, NB_VALUES, self._blockID)
+#        # Store specific information for this Sprite (id 10 for textureID)
+#        self.setTextureID(textureID)
+#        # Update the first time it is created
+#        self.update(1/60)
+
+#    def getTextureID(self):
+#        return self._data[16]
+#    def setTextureID(self, v):
+#        self._data[16]  = v
+#        self._writeToFS = True
+#        self._fsgpu.writeBlock1(self._blockID, v, 10)
+#    def __str__(self):
+#        return f"<GfxSprite textureId={self.getTextureID()} blockID={self.getBlockID()} {super().__str__()}/>"
 
 
 
