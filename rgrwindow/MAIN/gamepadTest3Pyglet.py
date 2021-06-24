@@ -13,7 +13,7 @@ from pyrr import Matrix44
 
 from pyrogen.src.pyrogen.ecs.shaders.simple_shader import SimpleShader
 from pyrogen.src.pyrogen.ecs.file_system.fsgpu_main import FsGpuMain
-from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx
+from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import GfxSprite, Gfx, GfxBox
 from pyrogen.src.pyrogen.rgrwindow.MAIN.loader import ResourceLoader
 from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 
@@ -36,8 +36,8 @@ from pyrogen.src.pyrogen.rgrwindow.MAIN.opengl_data import OpenGLData
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-DEBUG_NB_SPRITES     = 3000
-DEBUG_MOVING_SPRITES = True
+DEBUG_NB_SPRITES     = 100000
+DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_QUERY  = False
 DEBUG_DISPLAY_FSGPU  = False
 DEBUG_DISPLAY_PERFS  = False
@@ -639,15 +639,35 @@ class SpriteMgr():
             y = (i // squareSize) * 32
             # rotation
             angle = random.randint(0,360)
-            autoRot = random.randint(5,135)
+            autoRot = random.randint(0,270) - 135
             # visibility PWM
             total = random.random()*9.0 + 1.0
             on    = random.random()*total
             # filter
             clr = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
-            #Sprite creation
-            sprite  = GfxSprite(name,x=x, y=y, angle=angle, visOn=on, visTot=total, autoRotate=autoRot, fsgpu=fsgpu, filterColor=clr)
-            self._sprites.append(sprite)
+            # Add Sprite or basic shape
+            if random.random()<=0.5:
+                #Sprite creation
+                sprite  = GfxSprite(name,
+                                    x=x, y=y,
+                                    angle=angle,
+                                    visOn=on, visTot=total,
+                                    autoRotate=autoRot,
+                                    fsgpu=fsgpu, filterColor=clr)
+                self._sprites.append(sprite)
+            else:
+                inClr  = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
+                boxW   = random.randint(8,64)
+                boxH   = random.randint(8,64)
+                sprite = GfxBox(inClr=inClr,
+                                x=x, y=y,
+                                width=boxW, height=boxH,
+                                angle=angle,
+                                visOn=on, visTot=total,
+                                autoRotate=autoRot,
+                                fsgpu=fsgpu)
+                self._sprites.append(sprite)
+
         self._dbgTime = 0
         self._N = 0
 

@@ -3,10 +3,11 @@ import array
 
 class Gfx():
 
-    HEADER_SIZE = 16
-    TYPE_SPRITE = 1
-    TYPE_TEXT   = 2
-
+    HEADER_SIZE    = 16
+    TYPE_SPRITE    = 1
+    TYPE_TEXT      = 2
+    TYPE_RECTANGLE = 3
+    TYPE_OVAL      = 4
 
     _loader = None
 
@@ -33,6 +34,7 @@ class Gfx():
                  autoRotate=0.0,
                  fsgpu=None,
                  dataSize=HEADER_SIZE,
+                 gfxType=TYPE_SPRITE,
                  blockID=0
                  ):
         self._fsgpu    = fsgpu
@@ -56,8 +58,11 @@ class Gfx():
         self.setVisibility(visOn, visTot)
         # id = 12 for angle auto-rotation
         self.setAutoRotate(autoRotate)
-        # TODO : add a type for the current Gfx element
-        # remaining ids = 13-14-15
+        # id = 13 for GFX type
+        self._data[13] = gfxType
+
+        # remaining ids = 14-15
+        # TODO : highlight border (thickness, color, ...) ?
 
 
     # ------------------------------------
@@ -67,6 +72,9 @@ class Gfx():
         return self._blockID
     def getFsGpu(self):
         return self._fsgpu
+    def getType(self):
+        return self._data[13]
+
 
     # ------------------------------------
     #  Position (in pixels)
@@ -174,7 +182,7 @@ class Gfx():
         pass
         # update data into FS if needed
         if self._writeToFS:
-            # print(f"Writing {self} into FS")
+            #print(f"Writing {self._data} into FS")
             self._fsgpu.write2Texture(self._blockID, self._data)
             self._writeToFS = False
 
@@ -201,7 +209,15 @@ class GfxSprite(Gfx):
         # Allocate buffer in the file system for it
         self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_SPRITE)
         # Call parent constructor
-        super().__init__(x, y, w, h, angle, scale, filterColor, visOn, visTot, autoRotate, fsgpu, NB_VALUES, self._blockID)
+        super().__init__(x, y,
+                         w, h,
+                         angle, scale,
+                         filterColor,
+                         visOn, visTot,
+                         autoRotate,
+                         fsgpu,NB_VALUES,
+                         Gfx.TYPE_SPRITE,
+                         self._blockID)
         # Store specific information for this Sprite (id 10 for textureID)
         self.setTextureID(textureID)
         # Update the first time it is created
@@ -212,11 +228,61 @@ class GfxSprite(Gfx):
     def setTextureID(self, v):
         self._data[16]  = v
         self._writeToFS = True
-#        self._fsgpu.writeBlock1(self._blockID, v, 10)
 
 
-    def __str__(self):
-        return f"<GfxSprite textureId={self.getTextureID()} blockID={self.getBlockID()} {super().__str__()}/>"
+
+
+
+class GfxBox(Gfx):
+
+    __slots__ = ['_blockID',
+                 '_fsgpu',
+                 '_inColor',
+                 '_outColor',
+                 ]
+
+    def __init__(self, inClr=(0,0,0,0), width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0,
+                 autoRotate=0.0, filterColor=(255, 255, 255), fsgpu=None):
+        # We need to add
+        NB_VALUES = Gfx.HEADER_SIZE + 4
+        # if width or height is not filled, use default dimensions
+        w = 16
+        h = 16
+        if width > 0:
+            w = width
+        if height > 0:
+            h = height
+        # Allocate buffer in the file system for it
+        self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_RECTANGLE)
+        # Call parent constructor
+        super().__init__(x, y,
+                         w, h,
+                         angle, scale,
+                         filterColor,
+                         visOn, visTot,
+                         autoRotate,
+                         fsgpu, NB_VALUES,
+                         Gfx.TYPE_RECTANGLE,
+                         self._blockID)
+        # Store specific information for this Sprite (colors)
+        self.setInColor(inClr)
+        # Update the first time it is created
+        self.update(1 / 60)
+
+    def getInColor(self):
+        return (self._data[16],self._data[17],self._data[18],self._data[19])
+    def setInColor(self, v):
+        alpha = 255
+        if len(v) >= 4:
+            alpha = v[3]
+        self._data[16]   = v[0]
+        self._data[17]   = v[1]
+        self._data[18]   = v[2]
+        self._data[19]   = alpha
+        self._writeToFS = True
+
+
+
 
 
 

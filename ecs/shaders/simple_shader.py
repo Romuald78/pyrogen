@@ -16,6 +16,13 @@ class SimpleShader(Shader):
             #define PAGE_MASK      ( ((1<<PAGE_NUM_BITS )-1) << PAGE_SIZE_BITS )
             #define OVERHEAD       (1)
 
+            # ------------ GFX TYPES ----------------
+            #define TYPE_SPRITE    (1.0)
+            #define TYPE_TEXT      (2.0)
+            #define TYPE_RECTANGLE (3.0)
+            #define TYPE_OVAL      (4.0)
+            
+
         """
 
     def getVertex(self):
@@ -59,15 +66,31 @@ class SimpleShader(Shader):
             in ivec2 fsCoords[];
 
             out vec2 uv;
+            out vec4 inColor;
             out vec4 filterColor;
+            out float gfxType;
+
+            void processSprite(){
+            
+            }
+            
+            void processBox(){
+            
+            }
 
             void main() {
 
                 // Get coord in the FS texture                
                 ivec2 fsTexelCoords = fsCoords[0];
                 
+                //-------------------------------------------------------------------
+                // Get GFX Header data
+                //-------------------------------------------------------------------
+
                 // Get filtering color
                 filterColor = texelFetch( fsGpuChan, fsTexelCoords, 0 )/255.0;
+                // Init IN and OUT colors with the same values
+                inColor  = filterColor;
                 fsTexelCoords.x  += 1;
 
                 // Get position and size
@@ -75,61 +98,77 @@ class SimpleShader(Shader):
                 vec2 sizeFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
                 
-                
-                // Get scale (here .x value)
-                float scaleFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
-                
-                // Get angle and visibility values
+                // Get scale / angle / visibility values
+                float scaleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
                 float angleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
                 float fsVisOn    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
                 float fsVisTotal = texelFetch( fsGpuChan, fsTexelCoords, 0 ).w;
                 fsTexelCoords.x += 1;
+
+                // Get Auto-Rotate and gfx type
+                float fsAutoRot = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                float fsType    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                fsTexelCoords.x += 1;
+
+                //-------------------------------------------------------------------
+                // CHECK if this Gfx is visible or not
+                //-------------------------------------------------------------------
 
                 // Hide element if needed                
                 if (fract(systemTime/fsVisTotal) > (fsVisOn/fsVisTotal)){
                     return;
                 }
                 
-                // Get autorotate
-                float fsAutoRot = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
-                fsTexelCoords.x += 1;
-
-                // TODO : retrieve the Gfx element type in order to know what to do with data
-
-                // Get texture ID (for SPRITE)
-                float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
-                fsTexelCoords.x += 1;
-
                 // Set center and halfsize of sprite
                 vec2 center = posFS;
                 vec2 hsize  = scaleFS * sizeFS / 2.0;
 
-                // Get whole Atlas dimensions
-                vec2  texDim  = textureSize(atlasTextureChan,0);
-                // Get position and size of texture from the atlas
-                uvec4 texBox2 = texelFetch(atlasInfoChan, ivec2(int(textIdFS),0), 0 );
-                // Set values from unsigned to signed
-                vec4  texBox  = vec4(texBox2);
+                // Prepare data for geometry process
+                vec2 pos0 = vec2(0.0);
+                vec2 pos1 = vec2(0.0);
+                
 
-                // Half pixel
-                vec2 halfPixel = vec2(0.0)/texDim;   // set 0.5 for half pixel feature
 
-                // Get texture coords
-                vec2 pos0 = (texBox.xy/texDim.xy);
-                vec2 pos1 = pos0 + (texBox.zw/texDim.xy);
-                pos0      = pos0 + halfPixel;
-                pos1      = pos1 - halfPixel;
-                pos0.y    = 1.0-pos0.y;
-                pos1.y    = 1.0-pos1.y;
+                //==========================================================
+                // SPRITE
+                //==========================================================
+                if (fsType == TYPE_SPRITE){
+                    // Get texture ID (for SPRITE)
+                    float textIdFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                    fsTexelCoords.x += 1;
+                    
+                    // Get whole Atlas dimensions
+                    vec2  texDim  = textureSize(atlasTextureChan,0);
+                    // Get position and size of texture from the atlas
+                    uvec4 texBox2 = texelFetch(atlasInfoChan, ivec2(int(textIdFS),0), 0 );
+                    // Set values from unsigned to signed
+                    vec4  texBox  = vec4(texBox2);
+                    // Half pixel
+                    vec2 halfPixel = vec2(0.0)/texDim;   // set 0.5 for half pixel feature
+    
+                    // Get texture coords
+                    pos0   = (texBox.xy/texDim.xy);
+                    pos1   = pos0 + (texBox.zw/texDim.xy);
+                    pos0   = pos0 + halfPixel;
+                    pos1   = pos1 - halfPixel;
+                    pos0.y = 1.0-pos0.y;
+                    pos1.y = 1.0-pos1.y;
+                }
+                
+                //==========================================================
+                // BASIC BOX SHAPE
+                //==========================================================
+                if (fsType == TYPE_RECTANGLE){
+                    // get inside color
+                    vec4 fsInClr = texelFetch( fsGpuChan, fsTexelCoords, 0 )/255.0;
+                    fsTexelCoords.x += 1;    
+                    inColor  = fsInClr;
+                }
 
-                // Convert the rotation to radians
-                float angle = angleFS + (systemTime * fsAutoRot);
-                angle = radians(angle);
-                // Create a 2d rotation matrix
-                mat2 rot = mat2(
-                     cos(angle), sin(angle),
-                    -sin(angle), cos(angle)
-                );
+
+                //-------------------------------------------------------------------
+                // CONVERT size and position according to current viewport
+                //-------------------------------------------------------------------
 
                 // Get center position and check if it is outside viewport
                 vec4 glMin = projection * vec4(center-hsize, 0.0, 1.0);
@@ -141,6 +180,22 @@ class SimpleShader(Shader):
                     return;
                 }
 
+                // Convert the rotation to radians
+                float angle = angleFS + (systemTime * fsAutoRot);
+                angle = radians(angle);
+                // Create a 2d rotation matrix
+                mat2 rot = mat2(
+                     cos(angle), sin(angle),
+                    -sin(angle), cos(angle)
+                );
+
+                //-------------------------------------------------------------------
+                // EMIT 4 vertices in order to display the Gfx element
+                //-------------------------------------------------------------------
+
+                // Type of GFX
+                gfxType = fsType;
+        
                 // Emit a triangle strip creating a quad (4 vertices).
                 // Here we need to make sure the rotation is applied before we position the sprite.
                 // We just use hardcoded texture coordinates here. If an atlas is used we
@@ -177,9 +232,11 @@ class SimpleShader(Shader):
         return self._getHeader() + """
             uniform sampler2D  atlasTextureChan;
 
-            in  vec2 uv;
-            in  vec4 filterColor;
-            out vec4 fragColor;
+            in  vec2  uv;
+            in  vec4  inColor;
+            in  vec4  filterColor;
+            in  float gfxType;
+            out vec4  fragColor;
 
             float max3(vec3 v){
                 return max(max(v.x, v.y), v.z);
@@ -275,9 +332,14 @@ class SimpleShader(Shader):
 
             void main() {
 
-                // Get pixel color from the texture
+                // Get pixel color from the texture (only needed for Sprites
                 vec4 color = texture(atlasTextureChan, uv);
-
+                
+                // Update color if basic shape
+                if (gfxType == TYPE_RECTANGLE){
+                    color = inColor;
+                }
+                
                 // Modify color according to filter                
                 vec3 pixel  = RGB2HSL(color.xyz);                
                 vec3 filter = RGB2HSL(filterColor.xyz);
