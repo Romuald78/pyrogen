@@ -237,8 +237,6 @@ class GfxBox(Gfx):
 
     __slots__ = ['_blockID',
                  '_fsgpu',
-                 '_inColor',
-                 '_outColor',
                  ]
 
     def __init__(self, inClr=(0,0,0,0), width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0,
@@ -286,14 +284,46 @@ class GfxBox(Gfx):
 
 
 
-class GfxText(Gfx):
+#class GfxText(Gfx):
+#
+#    __slots__ = ['_blockID',
+#                 '_fsgpu',
+#                 '_message',
+#                ]
+#
+#    def __init__(self, message, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0,
+#        autoRotate=0.0, filterColor=(255, 255, 255), fsgpu=None):
+#        # We need to add specific data
+#        NB_VALUES = Gfx.HEADER_SIZE + 4
+#        # if width or height is not filled, use default dimensions
+#        w = 16
+#        h = 16
+#        if width > 0:
+#            w = width
+#        if height > 0:
+#            h = height
+#        # Allocate buffer in the file system for it
+#        self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_TEXT)
+#        # Call parent constructor
+#        super().__init__(x, y,
+#                         w, h,
+#                         angle, scale,
+#                         filterColor,
+#                         visOn, visTot,
+#                         autoRotate,
+#                         fsgpu, NB_VALUES,
+#                         Gfx.TYPE_RECTANGLE,
+#                         self._blockID)
+#        # Store specific information for this Sprite (colors)
+#        self.setMessage(message)
+#        # Update the first time it is created
+#        self.update(1 / 60)
+#
+#    def setMessage(self, msg):
+#        self._message = msg
 
-    __slots__ = ['_blockID',
-                 '_fsgpu',
-                 '_message',
-                ]
 
-#    def __init__(self, message, fontName, size=12, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
+#   def __init__(self, message, fontName, size=12, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
 #        # Specific Data for text element
 #        # - font id (1)
 #        # - font size (1)

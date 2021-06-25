@@ -29,6 +29,10 @@ def main():
         name = f"image{num}"
         app.addImage(name, f"images/{name}.png", (3, 4, 32, 32), )
 
+    # Add all fonts
+    app.addFont("mandala", "fonts/Mandala.ttf")
+    app.addFont("subway", "fonts/Subway.ttf")
+
     # run app
     app.run()
 

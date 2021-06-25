@@ -313,23 +313,6 @@ class SimpleShader(Shader):
                 return rgb;
             }
 
-            vec3 RGB2YUV(vec3 rgb){
-                mat3 matrix = mat3( 0.299,  0.587,  0.114,
-                                   -0.14714, -0.28886,  0.436,
-                                    0.615, -0.51499, -0.10001);
-                vec3 yuv = matrix * rgb;
-                return yuv;
-            }
-
-            vec3 YUV2RGB(vec3 yuv){
-                mat3 matrix = mat3( 1.0,  0.0  ,  1.13983,
-                                    1.0, -0.39465, -0.58060,
-                                    1.0,  2.03211,  0.0   );
-                vec3 rgb = matrix * yuv;
-                return rgb;
-            }
-
-
             void main() {
 
                 // Get pixel color from the texture (only needed for Sprites

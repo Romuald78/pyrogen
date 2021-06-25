@@ -178,6 +178,9 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================================
     def addImage(self, name, path, spriteInfo=None):
         self._loader.addImage(name, path, spriteInfo)
+    def addFont(self, name, path):
+        self._loader.addFont(name, path)
+
 
 
     # ========================================================================
@@ -583,7 +586,7 @@ class PyrogenApp3(pyglet.window.Window):
 
         # compute image atlas from the resource loader
         # TODO use the GPU texture size property instead of hard-coded value
-        self._loader.generateImageAtlas(768, 3)
+        self._loader.generateImageAtlas(1560, 3)
 
         # Load the loader ref into the Gfx class (static member)
         Gfx.setLoader(self._loader)
@@ -656,9 +659,9 @@ class SpriteMgr():
                                     fsgpu=fsgpu, filterColor=clr)
                 self._sprites.append(sprite)
             else:
+                boxW = random.randint(16, 48)
+                boxH = random.randint(16, 48)
                 inClr  = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
-                boxW   = random.randint(8,64)
-                boxH   = random.randint(8,64)
                 sprite = GfxBox(inClr=inClr,
                                 x=x, y=y,
                                 width=boxW, height=boxH,

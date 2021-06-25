@@ -1,6 +1,7 @@
+import sys
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 from os.path import basename, exists
 
 from os import stat
@@ -19,7 +20,7 @@ import pickle
 # =====================================================================
 class ResourceImage():
 
-    def __init__(self, name, filePath, id, spriteInfo=None):
+    def __init__(self, name, filePath, id, spriteInfo=None, fontInfo=None):
         # ID
         self._id = id
         # Store base name
@@ -27,9 +28,22 @@ class ResourceImage():
         # Position
         self._x = 0
         self._y = 0
-        # Load Pillow image into memory and set RGBA mode
-        img = Image.open(filePath)
-        self._img = img.convert("RGBA")
+
+        # Create image from fontInfo
+        if fontInfo != None:
+            c = fontInfo["character"]
+            x = fontInfo["x"]
+            y = fontInfo["y"]
+            w = fontInfo["w"]
+            h = fontInfo["h"]
+            # font info contains the box properties
+            imgFont = Image.open(filePath)
+            img = imgFont.crop( (x,y,x+w,y+h) )
+            self._img = img
+        else:
+            # Load Pillow image into memory and set RGBA mode
+            img = Image.open(filePath)
+            self._img = img.convert("RGBA")
         # SpriteSheet config (by default only 1 sprite, full Size)
         self._nbSpriteX = 1
         self._nbSpriteY = 1
@@ -248,6 +262,66 @@ class BinPacking():
         #print(f"FAIL {box}")
         return False
 
+    #split a surface from a top left box
+    def _splitSurface(self, w, h, surface):
+        res = []
+        W = surface[2] - surface[0]
+        H = surface[3] - surface[1]
+        # compute right surface area
+        R = (W - w) * h
+        # compute bottom surface area
+        B = (H - h) * w
+        # if one of them is negative that means the box does not fit into the surface
+        if R <= 0 or  B <= 0:
+            return False, []
+        # if both are equals, keep the one with the smallest side
+        keepRight = R < B
+        if R == B:
+            mini = min( (W-w), (H-h), w, h )
+            if mini == h or mini == W-w:
+                keepRight = True
+        # if one of them is smaller, keep it
+        if keepRight:
+            res.append( (surface[0] + w + self._border,
+                         surface[1],
+                         surface[2],
+                         surface[1] + h) )
+            res.append( (surface[0],
+                         surface[1] + h + self._border,
+                         surface[2],
+                         surface[3]) )
+        else:
+            res.append((surface[0],
+                        surface[1] + h + self._border,
+                        surface[0] + w,
+                        surface[3]))
+            res.append((surface[0] + w + self._border,
+                        surface[1],
+                        surface[2],
+                        surface[3]))
+        return True, res
+
+    def _processInternal2(self, surfaces):
+        while len(self._boxes) > 0:
+            print(len(self._boxes))
+            # take first box
+            box = self._boxes[0]
+            self._boxes = self._boxes[1:]
+            # Split surfaces with current box
+            ok = False
+            for s in surfaces:
+                res, newSurfs = self._splitSurface(box.width, box.height, s)
+                if res:
+                    ok = True
+                    surfaces.remove(s)
+                    surfaces += newSurfs
+                    box.x0 = s[0]
+                    box.y0 = s[1]
+                    self._out.append(box)
+                    break
+            if not ok:
+                raise RuntimeError(f"Impossible to add box {box}")
+
     def _processInternal(self, surface):
         #print(f"\nprocessing {surface}")
         # If we have already finished, just return empty list
@@ -278,7 +352,7 @@ class BinPacking():
 
     def process(self):
         self._out = []
-        self._processInternal( (0,0,self._size-1,self._size-1) )
+        self._processInternal2( [(0,0,self._size-1,self._size-1),] )
         return self._out
 
 
@@ -324,6 +398,7 @@ class ResourceLoader():
         return objList
 
     def __init__(self):
+        self._fonts         = []
         self._images        = {}
         self._textureByName = {}
         self._textureByID   = {}
@@ -336,6 +411,86 @@ class ResourceLoader():
             raise RuntimeError("ERROR: ResourceLoader - addImage - {name} is already registered")
         self._images[name] = imgRef
 
+    # TODO do not regenerate font png file if already exists and not modified
+    def addFont(self, name, fontPath, size=128, border=5, color=(255,255,255,255)):
+        fontAtlasPath = f"atlas/font_{name}.png"
+        fontDataPath  = f"atlas/font_{name}.dat"
+        if not exists(fontAtlasPath) or not exists(fontDataPath):
+            # prepare char dimensions
+            chars = {}
+            # Open font using PIL
+            fnt = ImageFont.truetype(fontPath, size)
+            # For each ascii value (one byte length) check the width and height
+            maxW = 0
+            maxH = 0
+            asciiMin = 32
+            asciiMax = 128
+            for ascii in range(asciiMin, asciiMax):
+                v = ascii
+                c = chr(ascii)
+                # real size of the char
+                dw, dh   = fnt.getsize(c)
+                ofx, ofy = fnt.getoffset(c)
+                chars[v] = {"char":c,
+                            "size":size,
+                            "width":dw,
+                            "height":dh,
+                            "offX":ofx,
+                            "offY":ofy,
+                            }
+                maxW = max(maxW, dw)
+                maxH = max(maxH, dh)
+            maxW += 2*border
+            maxH += 2*border
+            # Here we have the maximum size of one character for the entire font
+            # and we have a dictionary containing all character sizes
+            # Create image and draw font characters
+            N = 10
+            W = N * maxW
+            H = N * maxH
+            im1 = Image.new("RGBA", (W,H), (0,0,0,0))
+            dr1 = ImageDraw.Draw(im1)
+            xRef = border
+            yRef = border
+            # prepare output
+            OUT = {}
+            for ascii in range(asciiMin, asciiMax):
+                # Local data
+                v   = ascii
+                c   = chars[v]["char"]
+                dw  = chars[v]["width"]
+                dh  = chars[v]["height"]
+                ofx = chars[v]["offX"]
+                ofy = chars[v]["offY"]
+                # Update position
+                if xRef+dw+border >= W:
+                    xRef  = border
+                    yRef += maxH
+                # Fill output
+                OUT[v] = {"character":c,
+                          "x":xRef,
+                          "y":yRef,
+                          "w":dw,
+                          "h":dh}
+                # Draw character at the right place
+                # Y offset seems to ne used only to align characters correctly
+                # So it seems useless to use it in the following code lines
+                #dr1.rectangle((xRef,yRef,xRef+dw,yRef+dh),outline=color)
+                #dr1.rectangle((xRef-border,yRef-border,xRef+dw+border,yRef+dh+border),outline=color)
+                dr1 = ImageDraw.Draw(im1)
+                dr1.text((xRef-ofx,yRef), c, font=fnt, fill=color)
+                # Step to next estimated character position
+                xRef += dw + 2*border
+            # Save font image
+            im1.save(fontAtlasPath)
+            # Save font data
+            fp = open(fontDataPath, "wb")
+            pickle.dump(OUT, fp)
+            fp.close()
+        # Add font to list
+        self._fonts.append(name)
+
+
     def generateImageAtlas(self, squareSize, border, force=False):
         # Browse all images and get their hash, in order to create the atlas hash
         h = hashlib.sha256()
@@ -344,6 +499,9 @@ class ResourceLoader():
         for name in self._images:
             img = self._images[name]
             h.update(img.hash.encode())
+        # Browse all fonts too
+        for name in self._fonts:
+            h.update(name.encode())
         d = h.hexdigest()
         atlasHash = d[16:48]
         atlasPath = f"atlas/atlas_{atlasHash}.png"
@@ -353,6 +511,19 @@ class ResourceLoader():
         # We have to recreate it from scratch
         if not exists(atlasPath) or not exists(dumpPath) or force:
             print(f"Generate new atlas (hash={atlasHash})")
+
+            # Add images from fonts
+            for name in self._fonts:
+                # open data for this font
+                fp = open(f"atlas/font_{name}.dat", "rb")
+                fontData = pickle.load(fp)
+                fp.close()
+                # for each character, create an image
+                for ch in fontData:
+                    id = ch
+                    info = fontData[ch]
+                    charImg = ResourceImage(f"{name}_{id}", f"atlas/font_{name}.png", id, fontInfo=info)
+                    self._images[f"{name}_{id}"] = charImg
 
             # First sort images by biggest width then biggest height
             lst = self._images.values()
@@ -386,6 +557,8 @@ class ResourceLoader():
 
     def getNbTextures(self):
         if len(self._textureByName) != len(self._textureByID):
+            print(self._textureByName,file=sys.stderr)
+            print(self._textureByID, file=sys.stderr)
             raise RuntimeError("[ERROR] Difference between texture dicts !")
         return len(self._textureByName)
 
