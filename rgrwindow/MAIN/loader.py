@@ -1,3 +1,4 @@
+import array
 import sys
 from pathlib import Path
 
@@ -18,6 +19,9 @@ import pickle
 # =====================================================================
 # IMAGE / SPRITE SHEET
 # =====================================================================
+from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import Gfx
+
+
 class ResourceImage():
 
     def __init__(self, name, filePath, id, spriteInfo=None, fontInfo=None):
@@ -555,6 +559,36 @@ class ResourceLoader():
         self._atlasPath  = atlasPath
 
 
+    def storeFonts(self, fsgpu):
+        fonts = {}
+        for f in self._fonts:
+            minAscii = 32
+            maxAscii = 127
+            # Create block in the gpu
+            # create it in the last part of the memory, as these data will not be modified,
+            # it is better to put it far away from the modified areas (Sprites, ...)
+            # because it will avoid updating data pages for nothing
+            dataSize = maxAscii-minAscii+1
+            blockID = fsgpu.alloc(dataSize, Gfx.TYPE_FONT, searchFromEnd=True)
+            # Create array.array buffer in order to store font data
+            data = array.array("f", [0.0, ] * int(dataSize))
+            # store each texture ID related to each character ascii value
+            i = 0
+            for ascii in range(minAscii, maxAscii+1):
+                name = f"{f}_{ascii}"
+                charTex = self.getTextureByName(name)
+                data[i] = charTex["id"]
+                i += 1
+            # copy the data into the FS GPU once for all
+            fsgpu.write2Texture(blockID, data)
+            # Store the blockID for this font
+            fonts[f] = blockID
+        # Store new list of fonts
+        self._fonts = fonts
+        print(self._fonts)
+        exit()
+
+
     def getNbTextures(self):
         if len(self._textureByName) != len(self._textureByID):
             print(self._textureByName,file=sys.stderr)
@@ -585,3 +619,5 @@ class ResourceLoader():
         image = image.transpose(Image.FLIP_TOP_BOTTOM)
         return image
 
+    def getFontIDFromName(self, fontName):
+        return self._fonts[fontName]

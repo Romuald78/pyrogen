@@ -164,6 +164,7 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData = OpenGLData()
 
         # Init sprite Manager (debug only for the moment)
+        # TODO : DEBUG ONLY ! to remove
         self._spriteMgr = SpriteMgr()
 
         # elapsed time
@@ -370,15 +371,23 @@ class PyrogenApp3(pyglet.window.Window):
         self._openGlData.set("fsGpu", self._fsgpu.getTexture())
 
         # -----------------------------------------------------------------
+        # LOAD FONTS in the GPU FS
+        # -----------------------------------------------------------------
+        self._loader.storeFonts(self._fsgpu)
+
+
+        # -----------------------------------------------------------------
         # PROFILING
         # -----------------------------------------------------------------
         # Query configuration for profiling
         if DEBUG_DISPLAY_QUERY:
             self._query = self.ctx.query(samples=True, time=True, primitives=True)
 
+
         # -----------------------------------------------------------------
         # PREPARE SPRITE DATA
         # -----------------------------------------------------------------
+        # TODO : DEBUG ONLY ! to remove
         # Prepare sprites
         self._spriteMgr.createRandomSprites(self._loader, DEBUG_NB_SPRITES, self._fsgpu)
         vd = array("l", self._spriteMgr.genVertex())

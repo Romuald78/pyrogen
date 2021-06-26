@@ -17,10 +17,11 @@ class SimpleShader(Shader):
             #define OVERHEAD       (1)
 
             # ------------ GFX TYPES ----------------
-            #define TYPE_SPRITE    (1.0)
-            #define TYPE_TEXT      (2.0)
-            #define TYPE_RECTANGLE (3.0)
-            #define TYPE_OVAL      (4.0)
+            #define TYPE_SPRITE    (1)
+            #define TYPE_TEXT      (2)
+            #define TYPE_RECTANGLE (3)
+            #define TYPE_OVAL      (4)
+            #define TYPE_FONT      (5)
             
 
         """

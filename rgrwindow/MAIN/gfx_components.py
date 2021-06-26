@@ -8,6 +8,8 @@ class Gfx():
     TYPE_TEXT      = 2
     TYPE_RECTANGLE = 3
     TYPE_OVAL      = 4
+    TYPE_FONT      = 5
+
 
     _loader = None
 
