@@ -586,7 +586,6 @@ class ResourceLoader():
         # Store new list of fonts
         self._fonts = fonts
         print(self._fonts)
-        exit()
 
 
     def getNbTextures(self):

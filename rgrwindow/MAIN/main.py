@@ -30,6 +30,7 @@ def main():
         app.addImage(name, f"images/{name}.png", (3, 4, 32, 32), )
 
     # Add all fonts
+    # TODO ISSUE whe removing addFont calls O_o
     app.addFont("mandala", "fonts/Mandala.ttf")
     app.addFont("subway", "fonts/Subway.ttf")
 

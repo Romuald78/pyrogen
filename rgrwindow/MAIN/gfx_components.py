@@ -1,8 +1,15 @@
 import array
 
 
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 class Gfx():
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+    # ------------------------------------
+    #  CONSTANTS
+    # ------------------------------------
     HEADER_SIZE    = 16
     TYPE_SPRITE    = 1
     TYPE_TEXT      = 2
@@ -10,38 +17,48 @@ class Gfx():
     TYPE_OVAL      = 4
     TYPE_FONT      = 5
 
-
+    # ------------------------------------
+    #  LOADER
+    # ------------------------------------
     _loader = None
 
     @staticmethod
     def setLoader(loader):
         Gfx._loader = loader
 
+    # ------------------------------------
+    #  SLOTS
+    # ------------------------------------
     __slots__ = ['_fsgpu',
                  '_blockID',
                  '_writeToFS',
                  '_data',
                 ]
 
+    # ------------------------------------
+    #  CONSTRUCTOR
+    # ------------------------------------
     def __init__(self,
+                 width,
+                 height,
+                 scale=1.0,
                  x=0.0,
                  y=0.0,
-                 width=-1,
-                 height=-1,
                  angle=0.0,
-                 scale=1.0,
                  filterColor=(255,255,255),
                  visOn  = 1.0,
                  visTot = 1.0,
                  autoRotate=0.0,
+                 anchorX=0.0,
+                 anchorY=0.0,
                  fsgpu=None,
                  dataSize=HEADER_SIZE,
                  gfxType=TYPE_SPRITE,
                  blockID=0
                  ):
-        self._fsgpu    = fsgpu
-        self._blockID  = blockID
-        self._writeToFS= True
+        self._fsgpu     = fsgpu
+        self._blockID   = blockID
+        self._writeToFS = True
 
         # > Buffer is array.array
         self._data = array.array("f", [0.0, ] * int(dataSize))
@@ -53,19 +70,20 @@ class Gfx():
         self.setY(y)
         self.setW(width)
         self.setH(height)
-        # id = 8-9 for SCALE-ANGLE
+        # id = 8-9-10-11 for SCALE-ANGLE-VISIBILITY ON/TOTAL
         self.setScale(scale)
         self.setAngle(angle)
-        # id = 10-11 for visibility ON-TOTAL
         self.setVisibility(visOn, visTot)
         # id = 12 for angle auto-rotation
         self.setAutoRotate(autoRotate)
         # id = 13 for GFX type
         self._data[13] = gfxType
-
-        # remaining ids = 14-15
-        # TODO : highlight border (thickness, color, ...) ?
-
+        # id = 14-15 for ANCHOR Horizontal-Vertical
+        # The anchor is the sprite position origin (x/y), and from the rotation is performed
+        # Both (anchorX and anchorY) are values in pixels
+        # These values can exceed the sprite size : that means the anchor
+        # point will be outside the texture rectangle area
+        self.setAnchor(anchorX, anchorY)
 
     # ------------------------------------
     #  FS GPU
@@ -77,9 +95,8 @@ class Gfx():
     def getType(self):
         return self._data[13]
 
-
     # ------------------------------------
-    #  Position (in pixels)
+    #  POSITION (in pixels)
     # ------------------------------------
     def getX(self):
         return self._data[4]
@@ -106,7 +123,7 @@ class Gfx():
         self._writeToFS = True
 
     # ------------------------------------
-    #  Dimensions (in pixels, cannotbe modified directly)
+    #  DIMENSIONS (in pixels, cannotbe modified directly)
     # ------------------------------------
     def getW(self):
         return self._data[6]
@@ -120,17 +137,7 @@ class Gfx():
         self._writeToFS = True
 
     # ------------------------------------
-    # Scale (used to modify dimensions)
-    # initial ratio is kept
-    # ------------------------------------
-    def getScale(self):
-        return self._data[8]
-    def setScale(self, v):
-        self._data[8] = v
-        self._writeToFS = True
-
-    # ------------------------------------
-    #  Filter Color (0-255 values)
+    #  FILTER COLOR (0-255 values)
     # ------------------------------------
     def getColor(self):
         return (self._data[0], self._data[1], self._data[2], self._data[3])
@@ -144,9 +151,17 @@ class Gfx():
         self._data[3]   = alpha
         self._writeToFS = True
 
+    # ------------------------------------
+    #  SCALE
+    # ------------------------------------
+    def getScale(self):
+        return self._data[8]
+    def setScale(self, v):
+        self._data[8] = v
+        self._writeToFS = True
 
     # ------------------------------------
-    #  Angle (in degrees)
+    #  ANGLE (in degrees)
     # ------------------------------------
     def getAngle(self):
         return self._data[9]
@@ -159,9 +174,8 @@ class Gfx():
         self._data[12] = v
         self._writeToFS = True
 
-
     # ------------------------------------
-    #  Visibility (ON period and TOTAL period)
+    #  VISIBILITY (ON period and TOTAL period)
     # ------------------------------------
     def getVisibility(self):
         return (self._data[10], self._data[11])
@@ -176,6 +190,46 @@ class Gfx():
         self._data[10] = 0
         self._writeToFS = True
 
+    # ------------------------------------
+    #  ANCHOR
+    # ------------------------------------
+    def getAnchor(self):
+        return (self._data[14], self._data[15])
+    def getanchorX(self):
+        return self._data[14]
+    def getanchorY(self):
+        return self._data[15]
+    def setAnchor(self, x, y):
+        self._data[14] = x
+        self._data[15] = y
+        self._writeToFS = True
+    def setAnchorX(self, v):
+        self._data[14] = v
+        self._writeToFS = True
+    def setAnchorY(self, v):
+        self._data[15] = v
+    def setAnchorLeft(self):
+        self._data[14] = -1
+        self._writeToFS = True
+    def setAnchorCenterX(self):
+        self._data[14] = 0
+        self._writeToFS = True
+    def setAnchorRight(self):
+        self._data[14] = 1
+        self._writeToFS = True
+    def setAnchorTop(self):
+        self._data[15] = -1
+        self._writeToFS = True
+    def setAnchorCenterY(self):
+        self._data[15] = 0
+        self._writeToFS = True
+    def setAnchorBottom(self):
+        self._data[15] = 1
+        self._writeToFS = True
+    def setAnchorCenter(self):
+        self._data[14] = 0
+        self._data[15] = 0
+        self._writeToFS = True
 
     # ------------------------------------
     #  UPDATE (copy buffer into the GPU texture
@@ -190,13 +244,35 @@ class Gfx():
 
 
 
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 class GfxSprite(Gfx):
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+    # ------------------------------------
+    #  SLOTS
+    # ------------------------------------
     __slots__ = ['_blockID',
                  '_fsgpu',
-                ]
+                 ]
 
-    def __init__(self, textureName, width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0, autoRotate=0.0, filterColor=(255,255,255), fsgpu=None):
+    # ------------------------------------
+    #  CONSTRUCTOR
+    # ------------------------------------
+    def __init__(self,
+                 textureName,
+                 width=-1, height=-1,
+                 x=0.0,
+                 y=0.0,
+                 angle=0.0,
+                 visOn=1.0,
+                 visTot=1.0,
+                 autoRotate=0.0,
+                 filterColor=(255,255,255),
+                 anchorX=0.0,
+                 anchorY=0.0,
+                 fsgpu=None):
         NB_VALUES = Gfx.HEADER_SIZE + 4
         # Get texture info from loader
         texture   = Gfx._loader.getTextureByName(textureName)
@@ -211,38 +287,67 @@ class GfxSprite(Gfx):
         # Allocate buffer in the file system for it
         self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_SPRITE)
         # Call parent constructor
-        super().__init__(x, y,
-                         w, h,
-                         angle, scale,
-                         filterColor,
-                         visOn, visTot,
-                         autoRotate,
-                         fsgpu,NB_VALUES,
-                         Gfx.TYPE_SPRITE,
-                         self._blockID)
-        # Store specific information for this Sprite (id 10 for textureID)
+        super().__init__(w, h,
+                         x=x,
+                         y=y,
+                         angle=angle,
+                         filterColor=filterColor,
+                         visOn=visOn,
+                         visTot=visTot,
+                         autoRotate=autoRotate,
+                         anchorX=anchorX,
+                         anchorY=anchorY,
+                         fsgpu=fsgpu,
+                         dataSize=NB_VALUES,
+                         gfxType=Gfx.TYPE_SPRITE,
+                         blockID=self._blockID)
+
+        # Store specific information for this Sprite
         self.setTextureID(textureID)
         # Update the first time it is created
         self.update(1/60)
 
+    # ------------------------------------
+    #  TEXTURE ID
+    # ------------------------------------
     def getTextureID(self):
-        return self._data[16]
+        return self._data[Gfx.HEADER_SIZE + 0]
     def setTextureID(self, v):
-        self._data[16]  = v
+        self._data[Gfx.HEADER_SIZE + 0]  = v
         self._writeToFS = True
 
 
 
-
-
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 class GfxBox(Gfx):
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+    # ------------------------------------
+    #  SLOTS
+    # ------------------------------------
     __slots__ = ['_blockID',
                  '_fsgpu',
                  ]
 
-    def __init__(self, inClr=(0,0,0,0), width=-1, height=-1, x=0.0, y=0.0, angle=0.0, scale=1.0, visOn=1.0, visTot=1.0,
-                 autoRotate=0.0, filterColor=(255, 255, 255), fsgpu=None):
+    # ------------------------------------
+    #  CONSTRUCTOR
+    # ------------------------------------
+    def __init__(self,
+                 inClr=(0,0,0,0),
+                 width=-1,
+                 height=-1,
+                 x=0.0,
+                 y=0.0,
+                 angle=0.0,
+                 visOn=1.0,
+                 visTot=1.0,
+                 autoRotate=0.0,
+                 filterColor=(255, 255, 255),
+                 anchorX=0.0,
+                 anchorY=0.0,
+                 fsgpu=None):
         # We need to add
         NB_VALUES = Gfx.HEADER_SIZE + 4
         # if width or height is not filled, use default dimensions
@@ -255,31 +360,48 @@ class GfxBox(Gfx):
         # Allocate buffer in the file system for it
         self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_RECTANGLE)
         # Call parent constructor
-        super().__init__(x, y,
-                         w, h,
-                         angle, scale,
-                         filterColor,
-                         visOn, visTot,
-                         autoRotate,
-                         fsgpu, NB_VALUES,
-                         Gfx.TYPE_RECTANGLE,
-                         self._blockID)
+        super().__init__(w, h,
+                         x=x,
+                         y=y,
+                         angle=angle,
+                         filterColor=filterColor,
+                         visOn=visOn,
+                         visTot=visTot,
+                         autoRotate=autoRotate,
+                         anchorX=anchorX,
+                         anchorY=anchorY,
+                         fsgpu=fsgpu,
+                         dataSize=NB_VALUES,
+                         gfxType=Gfx.TYPE_RECTANGLE,
+                         blockID=self._blockID)
         # Store specific information for this Sprite (colors)
         self.setInColor(inClr)
         # Update the first time it is created
         self.update(1 / 60)
 
+    # ------------------------------------
+    #  INNER COLOR
+    # ------------------------------------
     def getInColor(self):
-        return (self._data[16],self._data[17],self._data[18],self._data[19])
+        return (self._data[Gfx.HEADER_SIZE + 0],
+                self._data[Gfx.HEADER_SIZE + 1],
+                self._data[Gfx.HEADER_SIZE + 2],
+                self._data[Gfx.HEADER_SIZE + 3])
     def setInColor(self, v):
         alpha = 255
         if len(v) >= 4:
             alpha = v[3]
-        self._data[16]   = v[0]
-        self._data[17]   = v[1]
-        self._data[18]   = v[2]
-        self._data[19]   = alpha
+        self._data[Gfx.HEADER_SIZE + 0]   = v[0]
+        self._data[Gfx.HEADER_SIZE + 1]   = v[1]
+        self._data[Gfx.HEADER_SIZE + 2]   = v[2]
+        self._data[Gfx.HEADER_SIZE + 3]   = alpha
         self._writeToFS = True
+
+
+
+
+
+
 
 
 

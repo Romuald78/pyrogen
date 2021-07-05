@@ -99,16 +99,17 @@ class SimpleShader(Shader):
                 vec2 sizeFS = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
                 
-                // Get scale / angle / visibility values
+                // Get Scale / angle / visibility values
                 float scaleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
                 float angleFS    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
                 float fsVisOn    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).z;
                 float fsVisTotal = texelFetch( fsGpuChan, fsTexelCoords, 0 ).w;
                 fsTexelCoords.x += 1;
 
-                // Get Auto-Rotate and gfx type
-                float fsAutoRot = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
-                float fsType    = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                // Get Auto-Rotate / gfx type / Anchor X-Y
+                float fsAutoRot  = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                float fsType     = texelFetch( fsGpuChan, fsTexelCoords, 0 ).y;
+                vec2  fsAnchor   = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
 
                 //-------------------------------------------------------------------
@@ -203,25 +204,40 @@ class SimpleShader(Shader):
                 // can pass an additional vec4 for specific texture coordinates.
                 // Each EmitVertex() emits values down the shader pipeline just like a single
                 // run of a vertex shader, but in geomtry shaders we can do it multiple times!
+                vec2 corner = vec2(0.0);
+                // Anchor position is also affected by the scale value
+                fsAnchor *= scaleFS;
 
                 // Upper left
-                gl_Position = projection * vec4(rot * vec2(-hsize.x, hsize.y) + center, 0.0, 1.0);
-                uv = vec2(pos0.x, pos1.y);
-                EmitVertex();
-
-                // lower left
-                gl_Position = projection * vec4(rot * vec2(-hsize.x, -hsize.y) + center, 0.0, 1.0);
+                corner = vec2(-hsize.x, -hsize.y) - fsAnchor;
+                corner = rot * corner;
+                corner = corner + center;
+                gl_Position = projection * vec4(corner, 0.0, 1.0);
                 uv = vec2(pos0.x, pos0.y);
                 EmitVertex();
 
+                // lower left
+                corner = vec2(-hsize.x, hsize.y) - fsAnchor;
+                corner = rot * corner;
+                corner = corner + center;
+                gl_Position = projection * vec4(corner, 0.0, 1.0);
+                uv = vec2(pos0.x, pos1.y);
+                EmitVertex();
+
                 // upper right
-                gl_Position = projection * vec4(rot * vec2(hsize.x, hsize.y) + center, 0.0, 1.0);
-                uv = vec2(pos1.x, pos1.y);
+                corner = vec2(hsize.x, -hsize.y) - fsAnchor;
+                corner = rot * corner;
+                corner = corner + center;
+                gl_Position = projection * vec4(corner, 0.0, 1.0);
+                uv = vec2(pos1.x, pos0.y);
                 EmitVertex();
 
                 // lower right
-                gl_Position = projection * vec4(rot * vec2(hsize.x, -hsize.y) + center, 0.0, 1.0);
-                uv = vec2(pos1.x, pos0.y);
+                corner = vec2(hsize.x, hsize.y) - fsAnchor;
+                corner = rot * corner;
+                corner = corner + center;
+                gl_Position = projection * vec4(corner, 0.0, 1.0);
+                uv = vec2(pos1.x, pos1.y);
                 EmitVertex();
 
                 // We are done with this triangle strip now

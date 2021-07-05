@@ -227,7 +227,7 @@ class PyrogenApp3(pyglet.window.Window):
     def __prepareData(self):
         # -----------------------------------------------------------------
         # TEXTURE ATLAS
-        # TODO create texture_array with (width,height,nbLayers)
+        # TODO create texture_array with (width,height,nbLayers) ?
         # -----------------------------------------------------------------
         # Set image directory
         image   = self._loader.getTextureImage()
@@ -649,12 +649,18 @@ class SpriteMgr():
             # Position
             x = (i  % squareSize) * 32
             y = (i // squareSize) * 32
+            # Size
+            width   = random.randint(22,42)
+            height  = random.randint(22,42)
+            # Anchor
+            anchorX = random.randint(-width,width)
+            anchorY = random.randint(-height,height)
             # rotation
-            angle = random.randint(0,360)
+            angle   = random.randint(0,360)
             autoRot = random.randint(0,270) - 135
             # visibility PWM
-            total = random.random()*9.0 + 1.0
-            on    = random.random()*total
+            total   = random.random()*9.0 + 1.0
+            on      = random.random()*total
             # filter
             clr = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
             # Add Sprite or basic shape
@@ -662,21 +668,24 @@ class SpriteMgr():
                 #Sprite creation
                 sprite  = GfxSprite(name,
                                     x=x, y=y,
+                                    width=width, height=width,  # for sprites, W=H
                                     angle=angle,
                                     visOn=on, visTot=total,
                                     autoRotate=autoRot,
+                                    anchorX=anchorX,
+                                    anchorY=anchorY,
                                     fsgpu=fsgpu, filterColor=clr)
                 self._sprites.append(sprite)
             else:
-                boxW = random.randint(16, 48)
-                boxH = random.randint(16, 48)
                 inClr  = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
                 sprite = GfxBox(inClr=inClr,
                                 x=x, y=y,
-                                width=boxW, height=boxH,
+                                width=width, height=height,
                                 angle=angle,
                                 visOn=on, visTot=total,
                                 autoRotate=autoRot,
+                                anchorX=anchorX,
+                                anchorY=anchorY,
                                 fsgpu=fsgpu)
                 self._sprites.append(sprite)
 
