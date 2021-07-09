@@ -58,22 +58,22 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     # EVENTS
     # ========================================================
-    def keyboardEvent(self, keyID, isPressed, modifiers):
+    def _keyboardEvent(self, keyID, isPressed, modifiers):
         print(f"<KEY> id={keyID} isPressed={isPressed} modifiers={modifiers}")
-    def mouseButtonEvent(self, x, y, buttonID, isPressed, modifiers):
+    def _mouseButtonEvent(self, x, y, buttonID, isPressed, modifiers):
         y = self.height-y
         print(f"<MOUSE-BUTTON> position=({x},{y}) buttonID={buttonID} isPressed={isPressed} modifiers={modifiers}")
-    def mouseMotionEvent(self, x, y, dx, dy):
+    def _mouseMotionEvent(self, x, y, dx, dy):
         dy = -dy
         print(f"<MOUSE-MOVE> position=({x},{y}) direction=({dx},{dy})")
-    def mouseDragEvent(self, x, y, dx, dy, buttonID, modifiers):
+    def _mouseDragEvent(self, x, y, dx, dy, buttonID, modifiers):
         dy = -dy
         print(f"<MOUSE-DRAG> position=({x},{y}) direction=({dx},{dy}) buttonID={buttonID} modifiers={modifiers}")
-    def mouseScrollEvent(self, x, y, dx, dy):
+    def _mouseScrollEvent(self, x, y, dx, dy):
         print(f"<MOUSE-SCROLL> position=({x},{y}) direction=({dx},{dy})")
-    def gamepadButtonEvent(self, gamepadID, buttonID, isPressed):
+    def _gamepadButtonEvent(self, gamepadID, buttonID, isPressed):
         print(f"<GAMEPAD-BUTTON> gamePadID=({gamepadID}) buttonID=({buttonID}) isPressed={isPressed}")
-    def gamepadAxisEvent(self, gamepadID, axisID, analogValue):
+    def _gamepadAxisEvent(self, gamepadID, axisID, analogValue):
         if axisID == "z":
             analogValue *= -1
         print(f"<GAMEPAD-AXIS> gamePadID=({gamepadID}) axisID=({axisID}) value={analogValue}")
@@ -83,43 +83,42 @@ class PyrogenApp3(pyglet.window.Window):
     # CALLBACKS
     # ========================================================
     def on_key_press(self, symbol, modifiers):
-        self.keyboardEvent(symbol, True, modifiers)
+        self._keyboardEvent(symbol, True, modifiers)
         if symbol == pyglet.window.key.ESCAPE:
             if DEBUG_DISPLAY_FSGPU:
                 self._fsgpu.display()
             self.close()
     def on_key_release(self, symbol, modifiers):
-        self.keyboardEvent(symbol, False, modifiers)
+        self._keyboardEvent(symbol, False, modifiers)
     def on_mouse_press(self, x, y, button, modifiers):
-        self.mouseButtonEvent(x, y, button, True, modifiers)
+        self._mouseButtonEvent(x, y, button, True, modifiers)
     def on_mouse_release(self, x, y, button, modifiers):
-        self.mouseButtonEvent(x, y, button, False, modifiers)
+        self._mouseButtonEvent(x, y, button, False, modifiers)
     def on_mouse_motion(self, x, y, dx, dy):
-        self.mouseMotionEvent(x, y, dx, dy)
+        self._mouseMotionEvent(x, y, dx, dy)
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        self.mouseDragEvent(x, y, dx, dy, buttons, modifiers)
+        self._mouseDragEvent(x, y, dx, dy, buttons, modifiers)
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        self.mouseScrollEvent(x, y, scroll_x, scroll_y)
+        self._mouseScrollEvent(x, y, scroll_x, scroll_y)
     def on_joystick_press(self, joystick, button):
         joyID = self.gamepads[joystick]
-        self.gamepadButtonEvent(joyID, button, True)
+        self._gamepadButtonEvent(joyID, button, True)
     def on_joystick_release(self, joystick, button):
         joyID = self.gamepads[joystick]
-        self.gamepadButtonEvent(joyID, button, False)
+        self._gamepadButtonEvent(joyID, button, False)
     def on_joystick_motion(self, joystick, axis, value):
         joyID = self.gamepads[joystick]
-        self.gamepadAxisEvent(joyID, axis, value)
+        self._gamepadAxisEvent(joyID, axis, value)
     def on_joystick_hat(self, joystick, x, y):
         joyID = self.gamepads[joystick]
-        self.gamepadAxisEvent(joyID, "x", x)
-        self.gamepadAxisEvent(joyID, "y", -y)
+        self._gamepadAxisEvent(joyID, "x", x)
+        self._gamepadAxisEvent(joyID, "y", -y)
 
 
     # ========================================================
-    # CONSTRUCTOR
+    # GAMEPADS
     # ========================================================
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def _prepareGLStuff(self):
         # GL config
         self.cfg = pyglet.gl.Config(
             major_version=3,
@@ -133,45 +132,67 @@ class PyrogenApp3(pyglet.window.Window):
         # GL context
         self.ctx  = moderngl.create_context(require=330)
         moderngl_window.activate_context(ctx=self.ctx)
-
-        #for field in self.ctx.info:
-        #    print(f"{field} : {self.ctx.info[field]}")
-
-        # Gamepad callbacks
-        joysticks = pyglet.input.get_joysticks()
-        self.gamepads = {}
-        i = 0
-        for g in joysticks:
-            g.open()
-            if g not in self.gamepads:
-                self.gamepads[g] = i
-                i += 1
-            g.on_joybutton_press   = self.on_joystick_press
-            g.on_joybutton_release = self.on_joystick_release
-            g.on_joyaxis_motion    = self.on_joystick_motion
-            g.on_joyhat_motion     = self.on_joystick_hat
-
-        # initiate the resource loader
-        self._loader = ResourceLoader()
-
-        # Store a list of different programs
-        # Only one can be selected at a time
         #the selected program will be used in the prepareData method
         self._program            = None
         self._programs           = {}
-
         # structure to store all rendering information
         self._openGlData = OpenGLData()
+        # elapsed time
+        self._elapsedTime = 0
+        # Display minimal information on GL Device
+        print("\nYou are using the following hardware device :")
+        for field in ["GL_VENDOR",
+                      "GL_RENDERER",
+                      "GL_VERSION",
+                      "GL_MAX_TEXTURE_SIZE",]:
+            print(f"    - {field} : {self.ctx.info[field]}")
+        #for field in self.ctx.info:
+        #    print(f"{field} : {self.ctx.info[field]}")
+
+    def _loadGamepads(self):
+        # Gamepad callbacks
+        joysticks = pyglet.input.get_joysticks()
+        N = len(joysticks)
+        s1 = "is" if N <= 1 else "are"
+        s2 = "" if N <= 1 else "s"
+        if N == 0:
+            N = "no"
+        print(f"\nThere {s1} {N} connected gamepad{s2}")
+        self.gamepads = {}
+        if len(joysticks) > 0:
+            i = 0
+            for g in joysticks:
+                g.open()
+                if g not in self.gamepads:
+                    self.gamepads[g] = i
+                    i += 1
+                g.on_joybutton_press   = self.on_joystick_press
+                g.on_joybutton_release = self.on_joystick_release
+                g.on_joyaxis_motion    = self.on_joystick_motion
+                g.on_joyhat_motion     = self.on_joystick_hat
+                print(f"    ID : #{i-1} - NAME : {g.device.name}")
+
+
+    # ========================================================
+    # CONSTRUCTOR
+    # ========================================================
+    def __init__(self, *args, **kwargs):
+        # Parent constructor
+        super().__init__(*args, **kwargs)
+        # Gamepads
+        self._loadGamepads()
+        # GL Stuff
+        self._prepareGLStuff()
+        # initiate the resource loader
+        self._loader = ResourceLoader()
+        # Profiling
+        self._FPS = []
 
         # Init sprite Manager (debug only for the moment)
         # TODO : DEBUG ONLY ! to remove
         self._spriteMgr = SpriteMgr()
 
-        # elapsed time
-        self._elapsedTime = 0
 
-        # Profiling
-        self._FPS = []
 
 
     # ========================================================================
@@ -224,7 +245,39 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================================
     # GPU CONFIGURATION
     # ========================================================================
-    def __prepareData(self):
+    def __prepareData(self, atlasSide, fsGpuMemSize):
+        # -----------------------------------------------------------------
+        # GPU FILE SYSTEM
+        # -----------------------------------------------------------------
+        # TODO : use the gpu device max texture size property instead of hard-coded size
+        # the height indicates number of pages
+        # the width the size of each 1-height FSGpuBuffer
+        # the static sprites could be stored in the last pages
+        # the dynamic ones could be stores in the first pages
+        # -----------------------------------------------------------------
+        # Data area = Width * Height (will be multiplied by number of components (4 32-bit float))
+        # By default set the width to 32kB, but we can use less, according to hardware specs
+        sizeW        =  min(16*1024, self.ctx.info["GL_MAX_TEXTURE_SIZE"])
+        sizeH        =  fsGpuMemSize // (sizeW * 4)
+        # instanciate FsGpu
+        print(f"\nCreating FsGPU texture : size={sizeW}/{sizeH} 32-bit-float-values")
+        self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
+        self._openGlData.set("fsGpu", self._fsgpu.getTexture())
+
+        # -----------------------------------------------------------------
+        # IMAGE ATLAS
+        # -----------------------------------------------------------------
+        # compute image atlas from the resource loader
+        sizeSide = min(atlasSide, self.ctx.info["GL_MAX_TEXTURE_SIZE"])
+        self._loader.generateImageAtlas(sizeSide, 3)
+        # Load the loader ref into the Gfx class (static member)
+        Gfx.setLoader(self._loader)
+
+        # -----------------------------------------------------------------
+        # LOAD FONTS in the GPU FS
+        # -----------------------------------------------------------------
+        self._loader.storeFonts(self._fsgpu)
+
         # -----------------------------------------------------------------
         # TEXTURE ATLAS
         # TODO create texture_array with (width,height,nbLayers) ?
@@ -354,29 +407,6 @@ class PyrogenApp3(pyglet.window.Window):
 
 
         # -----------------------------------------------------------------
-        # GPU FILE SYSTEM
-        # -----------------------------------------------------------------
-        # TODO : use the gpu device max texture size property instead of hard-coded size
-        # the height indicates number of pages
-        # the width the size of each 1-height FSGpuBuffer
-        # the static sprites could be stored in the last pages
-        # the dynamic ones could be stores in the first pages
-        # -----------------------------------------------------------------
-        # Data area = Width * Height * number of components (4 float)
-        sizeW        =  16*1024
-        sizeH        =  2*1024
-        # instanciate FsGpu
-        print(f"Creating FS MAIN with size={sizeW}/{sizeH} 32-bit-float-values")
-        self._fsgpu = FsGpuMain(self.ctx, sizeW, sizeH)
-        self._openGlData.set("fsGpu", self._fsgpu.getTexture())
-
-        # -----------------------------------------------------------------
-        # LOAD FONTS in the GPU FS
-        # -----------------------------------------------------------------
-        self._loader.storeFonts(self._fsgpu)
-
-
-        # -----------------------------------------------------------------
         # PROFILING
         # -----------------------------------------------------------------
         # Query configuration for profiling
@@ -485,7 +515,6 @@ class PyrogenApp3(pyglet.window.Window):
         # update program uniform system time
         self._program["systemTime"      ] = self._elapsedTime
 
-
         # TODO ---------------- remove (DEBUG) --------------------------
         # update moving sprites if needed
         if DEBUG_MOVING_SPRITES:
@@ -496,6 +525,7 @@ class PyrogenApp3(pyglet.window.Window):
         # Process File system
         self._fsgpu.update(deltaTime)
 
+        # TODO ---------------- remove (DEBUG) --------------------------
         # update viewport if not moving sprites
         if not DEBUG_MOVING_SPRITES:
             squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
@@ -587,18 +617,11 @@ class PyrogenApp3(pyglet.window.Window):
     # ========================================================
     # MAIN LOOP
     # ========================================================
-    def run(self):
+    def run(self, atlasSide=int(1.5*1024), fsGpuMemSize=8*1024*1024*4):
 
 #        # BUFFER DEBUG PERF TEST
 #        perfTest()
 #        exit()
-
-        # compute image atlas from the resource loader
-        # TODO use the GPU texture size property instead of hard-coded value
-        self._loader.generateImageAtlas(1560, 3)
-
-        # Load the loader ref into the Gfx class (static member)
-        Gfx.setLoader(self._loader)
 
         # Instanciate shader object and add program
         shader = SimpleShader()
@@ -608,12 +631,11 @@ class PyrogenApp3(pyglet.window.Window):
                           fragmentStr=shader.getFragment())
 
         # Prepare GPU stuff
-        self.__prepareData()
+        self.__prepareData(atlasSide, fsGpuMemSize)
         # update loop interval
         pyglet.clock.schedule_interval(self.update, 1/65)
 
-        # Start pyglet app and profile it
-        # cProfile.runctx('pyglet.app.run()', globals(), None)
+        # Start pyglet app and profile it if needed
         cpr = None
         if DEBUG_DISPLAY_PERFS:
             cpr = cProfile.Profile()
@@ -655,6 +677,8 @@ class SpriteMgr():
             # Anchor
             anchorX = random.randint(-width,width)
             anchorY = random.randint(-height,height)
+            anchorX = 0
+            anchorY = 0
             # rotation
             angle   = random.randint(0,360)
             autoRot = random.randint(0,270) - 135
@@ -677,7 +701,7 @@ class SpriteMgr():
                                     fsgpu=fsgpu, filterColor=clr)
                 self._sprites.append(sprite)
             else:
-                inClr  = (random.randint(128,255),random.randint(128,255),random.randint(128,255),random.randint(128,255))
+                inClr  = (random.randint(0,255),random.randint(64,192),random.randint(128,255),random.randint(128,255))
                 sprite = GfxBox(inClr=inClr,
                                 x=x, y=y,
                                 width=width, height=height,

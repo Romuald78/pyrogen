@@ -10,8 +10,8 @@ class SimpleShader(Shader):
             #version 330
             
             # ------------ FILE SYSTEM ----------------
-            #define PAGE_SIZE_BITS (18)
-            #define PAGE_NUM_BITS  (14)            
+            #define PAGE_SIZE_BITS (16)
+            #define PAGE_NUM_BITS  (16)            
             #define OFFSET_MASK    ((1<<PAGE_SIZE_BITS)-1)
             #define PAGE_MASK      ( ((1<<PAGE_NUM_BITS )-1) << PAGE_SIZE_BITS )
             #define OVERHEAD       (1)

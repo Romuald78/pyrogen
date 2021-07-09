@@ -26,9 +26,9 @@ class FsGpuMain():
     # ----------------------------------------------------
     def __init__(self, ctx, pageSize, nbPages):
         # pageShift is the number of bits to code the pageSize
-        # 18 means the page size can be 128kB = 32kB texture width
-        # We store the page number on the 14 remaining bits (to stay in unsigned 32 bits range)
-        self._pageShift = 18
+        # 16 means the page size can be 64kB
+        # We store the page number on the 16 remaining bits (to stay in unsigned 32 bits range)
+        self._pageShift = 16
         self._pageMask  = (1 << (32 - self._pageShift)) - 1
         self._maxPages  = math.pow(2, 32-self._pageShift)
         # Either page size cannot be more than 2^pageShift
@@ -68,9 +68,7 @@ class FsGpuMain():
     def _clear(self):
         # create buffers
         self._pages = [FsGpuBuffer(self._pageSize) for N in range(self._nbPages)]
-
         # Create texture from context
-        print(f"Create texture W={self._pageSize} H={self._nbPages} C={self._nbComp}")
         self._texture = self._ctx.texture((self._pageSize, self._nbPages), self._nbComp, dtype="f4")
 
     def _isPageOK(self, pageNum):

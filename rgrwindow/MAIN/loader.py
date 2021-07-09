@@ -199,28 +199,72 @@ class Box():
     def data(self):
         return self._img
 
+    def isOverlapping(self, other):
+        return self.x0 <= other.x1 and self.x1 >= other.x0 and self.y0 <= other.y1 and self.y1 >= other.y0
+
     def __str__(self):
         return f"<Box id:{self.id} name:'{self.name}' - x:{self.x0} - y:{self.y0} - w:{self.width} - h:{self.height}>"
 
 
+class Surface():
+
+    def __init__(self, x0, y0, w, h):
+        self._x0 = x0
+        self._y0 = y0
+        self._w  = w
+        self._h  = h
+        self._children = []
+
+    @property
+    def width(self):
+        return self._w
+    @property
+    def height(self):
+        return self._h
+    @property
+    def x0(self):
+        return self._x0
+    @property
+    def y0(self):
+        return self._y0
+    @property
+    def hasChildren(self):
+        return len(self._children) > 0
+
+    def __str__(self):
+        return f"<SURFACE : {self.x0}/{self.y0}/{self.width}/{self.height}>"
+
+    def insertBox(self, box, border=3):
+        # Get full box area
+        boxW = box.width + 2 * border
+        boxH = box.height + 2 * border
+        # check if box fits into surface
+        if self.width >= boxW and self.height >= boxH and not self.hasChildren:
+            # Split surface and add children
+            sB = Surface(self.x0, self.y0 + boxH, boxW, self.height - boxH)
+            sR = Surface(self.x0 + boxW, self.y0, self.width - boxW, self.height)
+            self._children.append(sR)
+            self._children.append(sB)
+            # Set position for the current box
+            box.x0 = self.x0 + border
+            box.y0 = self.y0 + border
+            # Return OK
+            return True
+        elif self.hasChildren :
+            # Check first child
+            res1 = False
+            res2 = False
+            res1 = self._children[1].insertBox(box, border)
+            if not res1:
+                res2 = self._children[0].insertBox(box, border)
+            return res1 or res2
+        else:
+            # no available surface
+            return False
+
+
 
 class BinPacking():
-
-    def _boxOverlap(self, A, B):
-        result = A.x0-self._border<=B.x1+self._border and B.x0-self._border<=A.x1+self._border and A.y0-self._border<=B.y1+self._border and B.y0-self._border<=A.y1+self._border
-        return result
-
-    def _isValid(self, box, surface):
-        surfX0, surfY0, surfX1, surfY1 = surface
-        # Check if the current box fits in the remaining size (check right and bottom borders)
-        if box.x0-self._border < surfX0 or box.x1+self._border > surfX1 or box.y0-self._border < surfY0 or box.y1+self._border > surfY1:
-            return False
-        # Check if the current box overlaps any other box
-        for otherImg in self._out:
-            # If they are overlapping
-            if self._boxOverlap(box, otherImg):
-                return False
-        return True
 
     # -----------------------------------------------------------------
     # Create box information from image list
@@ -252,112 +296,27 @@ class BinPacking():
         self._border = imgBorder
         self._boxes  = self._createBoxes(resImgList)
         self._out = []
+        self._surface = Surface(0, 0, self._size, self._size)
 
-    def _fillNextBox(self, box, surface):
-        x0, y0, x1, y1 = surface
-        for y in range(y0, y1 + 1):
-            for x in range(x0, x1 + 1):
-                box.x0 = x
-                box.y0 = y
-                if self._isValid(box, surface):
-                    #print(f"OK {box}")
-                    #print(f"added {box} (remaining:{len(self._boxes)})")
-                    return True
-        #print(f"FAIL {box}")
-        return False
-
-    #split a surface from a top left box
-    def _splitSurface(self, w, h, surface):
-        res = []
-        W = surface[2] - surface[0]
-        H = surface[3] - surface[1]
-        # compute right surface area
-        R = (W - w) * h
-        # compute bottom surface area
-        B = (H - h) * w
-        # if one of them is negative that means the box does not fit into the surface
-        if R <= 0 or  B <= 0:
-            return False, []
-        # if both are equals, keep the one with the smallest side
-        keepRight = R < B
-        if R == B:
-            mini = min( (W-w), (H-h), w, h )
-            if mini == h or mini == W-w:
-                keepRight = True
-        # if one of them is smaller, keep it
-        if keepRight:
-            res.append( (surface[0] + w + self._border,
-                         surface[1],
-                         surface[2],
-                         surface[1] + h) )
-            res.append( (surface[0],
-                         surface[1] + h + self._border,
-                         surface[2],
-                         surface[3]) )
-        else:
-            res.append((surface[0],
-                        surface[1] + h + self._border,
-                        surface[0] + w,
-                        surface[3]))
-            res.append((surface[0] + w + self._border,
-                        surface[1],
-                        surface[2],
-                        surface[3]))
-        return True, res
-
-    def _processInternal2(self, surfaces):
+    def _processInternal3(self):
         while len(self._boxes) > 0:
-            print(len(self._boxes))
             # take first box
             box = self._boxes[0]
             self._boxes = self._boxes[1:]
             # Split surfaces with current box
-            ok = False
-            for s in surfaces:
-                res, newSurfs = self._splitSurface(box.width, box.height, s)
-                if res:
-                    ok = True
-                    surfaces.remove(s)
-                    surfaces += newSurfs
-                    box.x0 = s[0]
-                    box.y0 = s[1]
-                    self._out.append(box)
-                    break
-            if not ok:
-                raise RuntimeError(f"Impossible to add box {box}")
-
-    def _processInternal(self, surface):
-        #print(f"\nprocessing {surface}")
-        # If we have already finished, just return empty list
-        if len(self._boxes) == 0:
-            return []
-        else:
-            # Get Next box from list
-            box = self._boxes[0]
-            # Try to add it into the current surface
-            res = self._fillNextBox(box, surface)
-            if res:
-                # Add this box to output list
-                # and remove it from input list
+            isOK = self._surface.insertBox(box, self._border)
+            if isOK:
                 self._out.append(box)
-                self._boxes = self._boxes[1:]
-                # Get surface to the RIGHT and BELOW
-                surfaceR = (box.x1 + 2*self._border, box.y0 -   self._border, surface[2], box.y1 + 2*self._border)
-                surfaceB = (box.x0 -   self._border, box.y1 + 2*self._border, surface[2], surface[3]             )
+            else:
+                print(f"Impossible to add box {box}")
+                return False
+        return True
 
-                #print( "Split")
-                #print(f"        -> {surfaceR}")
-                #print(f"        -> {surfaceB}")
-
-                # first process next boxes on the RIGHT...
-                self._processInternal( surfaceR )
-                # ...then process next boxes BELOW
-                self._processInternal( surfaceB )
 
     def process(self):
         self._out = []
-        self._processInternal2( [(0,0,self._size-1,self._size-1),] )
-        return self._out
+        res = self._processInternal3()
+        return res, self._out
 
 
 # =====================================================================
@@ -394,7 +353,6 @@ class ResourceLoader():
         fp = open(dumpPath, "wb")
         pickle.dump(objList, fp)
         fp.close()
-
     def _loadData(self, loadPath):
         fp = open(loadPath, "rb")
         objList = pickle.load(fp)
@@ -514,7 +472,7 @@ class ResourceLoader():
         # If the hash version of the atlas is not already generated,
         # We have to recreate it from scratch
         if not exists(atlasPath) or not exists(dumpPath) or force:
-            print(f"Generate new atlas (hash={atlasHash})")
+            print(f"\nGenerate new atlas (hash={atlasHash}) - side = {squareSize}")
 
             # Add images from fonts
             for name in self._fonts:
@@ -534,8 +492,8 @@ class ResourceLoader():
             lst = sorted(lst, key=lambda x:(-x.spriteWidth,-x.spriteHeight))
 
             # For each image, make it fit into a squareSize structure
-            binPacking = BinPacking(squareSize, border, lst)
-            boxList    = binPacking.process()
+            binPacking   = BinPacking(squareSize, border, lst)
+            res, boxList = binPacking.process()
 
             # Create atlasInfo Data (JSON format)
             self._dumpData(boxList, dumpPath)
@@ -545,8 +503,10 @@ class ResourceLoader():
             # in order to avoid texture bleeding during rendering
             im1 = self._drawAtlas(squareSize, boxList)
             im1.save(atlasPath)
+            if not res:
+                raise RuntimeError("Impossible to finish the Atlas generation !")
         else:
-            print(f"Restore previous atlas (hash={atlasHash})")
+            print(f"\nRestore previous atlas (hash={atlasHash}) - size = {squareSize}")
 
         # Open json file and store atlas information
         textureList = self._loadData(dumpPath)
@@ -585,8 +545,6 @@ class ResourceLoader():
             fonts[f] = blockID
         # Store new list of fonts
         self._fonts = fonts
-        print(self._fonts)
-
 
     def getNbTextures(self):
         if len(self._textureByName) != len(self._textureByID):
