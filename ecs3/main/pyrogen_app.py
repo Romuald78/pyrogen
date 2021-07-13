@@ -153,15 +153,24 @@ class PyrogenApp(pyglet.window.Window):
         self._openGlData = OpenGLData()
         # elapsed time
         self._elapsedTime = 0
+        # TODO : remove this fieldLINEwhen moderngl is 5.7.0
+        self.ctx.info["GL_MAX_GEOMETRY_OUTPUT_VERTICES"] = 256
         # Display minimal information on GL Device
         print("\nYou are using the following GL device :")
         for field in ["GL_VENDOR",
                       "GL_RENDERER",
                       "GL_VERSION",
-                      "GL_MAX_TEXTURE_SIZE",]:
-            print(f"    - {field} : {self.ctx.info[field]}")
-        #for field in self.ctx.info:
-        #    print(f"{field} : {self.ctx.info[field]}")
+                      "GL_MAX_TEXTURE_SIZE",
+                      "GL_MAX_GEOMETRY_OUTPUT_VERTICES",
+                      ]:
+            hardCoded = ""
+            if field == "GL_MAX_GEOMETRY_OUTPUT_VERTICES":
+                hardCoded = "(/!\ HARD-CODED /!\)"
+            print(f"    - {field} : {self.ctx.info[field]} {hardCoded}")
+
+#        for field in self.ctx.info:
+#            print(f"{field} : {self.ctx.info[field]}")
+
 
     # ========================================================================
     #  SHADER PROGRAMS
