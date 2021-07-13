@@ -4,23 +4,26 @@ class OpenGLData():
 
     def __init__(self):
         self._data = {
-            # Atlas texture
+            # TEXTURE ATLAS
             "textureAtlas" : None,  # ALL sprite texture (albedo, diffuse, specular)
-
             "nbTextures"   : None,  # integer
             "atlasInfo"    : None,  # Texture containing all texture information
 
+            # LIGHTS
             "nbLights"     : None,  # integer
             "lightInfo"    : None,  # Texture containing all light information
 
+            # VERTEX
             "nbSprites"    : None,  # integer (number of vertices)
             "spriteSize"   : None,  # integer (data size for one vertex)
             "vertexBuffer" : None,  # vertex buffer
             "vertexData"   : None,  # vertex data copied to the vertex buffer
+            "vao"          : None,  # Vertex array object
 
+            # FILE SYSTEM
             "fsGpu"        : None,  # Texture used to store the FS in GPU
 
-            "vao"          : None,  # Vertex array object
+            # PROJECTION MATRIX
             "projMatrix"   : None,  # Projection matrix (used for camera feature)
         }
 

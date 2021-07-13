@@ -1,14 +1,12 @@
 import array
 import sys
-from pathlib import Path
 
 from PIL import Image, ImageFont, ImageDraw
-from os.path import basename, exists
-
+from os.path import exists
 from os import stat
 import hashlib
-
 import pickle
+from pyrogen.src.pyrogen.ecs3.components.gfx import Gfx
 
 
 # TODO : for each texture, if not requested, add a dummy "normal" and dummy "specular" texture
@@ -19,7 +17,7 @@ import pickle
 # =====================================================================
 # IMAGE / SPRITE SHEET
 # =====================================================================
-from pyrogen.src.pyrogen.rgrwindow.MAIN.gfx_components import Gfx
+from pyrogen.src.pyrogen.ecs3.loader.bin_packing import BinPacking, UniqueID
 
 
 class ResourceImage():
@@ -141,200 +139,18 @@ class ResourceImage():
 
 
 
-# =====================================================================
-# ATLAS CREATION ALGORITHM
-# =====================================================================
-class Box():
-
-    def __init__(self, imgRsc, newId, index=0):
-        # Prepare sub coords
-        w = imgRsc.spriteW
-        h = imgRsc.spriteH
-        ix = index %  imgRsc.nbSpriteX
-        iy = index // imgRsc.nbSpriteX
-        x0 = imgRsc.x0 + ix*w
-        y0 = imgRsc.y0 + iy*h
-        x1 = x0 + w
-        y1 = y0 + h
-        # Store box and image
-        self._id   = newId
-        self._x    = x0
-        self._y    = y0
-        self._name = f"{imgRsc.name}"
-        if imgRsc.nbSpriteX > 1 or imgRsc.nbSpriteY > 1:
-            self._name += f"_{index}"
-        self._img  = imgRsc.data.crop( (x0,y0,x1,y1) )
-
-    @property
-    def x0(self):
-        return self._x
-    @property
-    def y0(self):
-        return self._y
-    @x0.setter
-    def x0(self,v):
-        self._x = v
-    @y0.setter
-    def y0(self,v):
-        self._y = v
-    @property
-    def width(self):
-        return self._img.size[0]
-    @property
-    def height(self):
-        return self._img.size[1]
-    @property
-    def x1(self):
-        return self.x0 + self.width - 1
-    @property
-    def y1(self):
-        return self.y0 + self.height - 1
-    @property
-    def id(self):
-        return self._id
-    @property
-    def name(self):
-        return self._name
-    @property
-    def data(self):
-        return self._img
-
-    def isOverlapping(self, other):
-        return self.x0 <= other.x1 and self.x1 >= other.x0 and self.y0 <= other.y1 and self.y1 >= other.y0
-
-    def __str__(self):
-        return f"<Box id:{self.id} name:'{self.name}' - x:{self.x0} - y:{self.y0} - w:{self.width} - h:{self.height}>"
-
-
-class Surface():
-
-    def __init__(self, x0, y0, w, h):
-        self._x0 = x0
-        self._y0 = y0
-        self._w  = w
-        self._h  = h
-        self._children = []
-
-    @property
-    def width(self):
-        return self._w
-    @property
-    def height(self):
-        return self._h
-    @property
-    def x0(self):
-        return self._x0
-    @property
-    def y0(self):
-        return self._y0
-    @property
-    def hasChildren(self):
-        return len(self._children) > 0
-
-    def __str__(self):
-        return f"<SURFACE : {self.x0}/{self.y0}/{self.width}/{self.height}>"
-
-    def insertBox(self, box, border=3):
-        # Get full box area
-        boxW = box.width + 2 * border
-        boxH = box.height + 2 * border
-        # check if box fits into surface
-        if self.width >= boxW and self.height >= boxH and not self.hasChildren:
-            # Split surface and add children
-            sB = Surface(self.x0, self.y0 + boxH, boxW, self.height - boxH)
-            sR = Surface(self.x0 + boxW, self.y0, self.width - boxW, self.height)
-            self._children.append(sR)
-            self._children.append(sB)
-            # Set position for the current box
-            box.x0 = self.x0 + border
-            box.y0 = self.y0 + border
-            # Return OK
-            return True
-        elif self.hasChildren :
-            # Check first child
-            res1 = False
-            res2 = False
-            res1 = self._children[1].insertBox(box, border)
-            if not res1:
-                res2 = self._children[0].insertBox(box, border)
-            return res1 or res2
-        else:
-            # no available surface
-            return False
-
-
-
-class BinPacking():
-
-    # -----------------------------------------------------------------
-    # Create box information from image list
-    # -----------------------------------------------------------------
-    def _createBoxes(self, imgList):
-        #self._processInternal( (0,0,self._size-1, self._size-1) )
-        boxes = []
-        while len(imgList) > 0:
-            # Get next image from list
-            img     = imgList[0]
-            imgList = imgList[1:]
-            if img.nbSpriteX==1 and img.nbSpriteY==1:
-                box = Box(img, 0)
-                boxes.append(box)
-            else:
-                # Create new images and add them into the atlas
-                for y in range(img.nbSpriteY):
-                    for x in range(img.nbSpriteX):
-                        idx = y*img.nbSpriteX + x
-                        box = Box(img, ResourceLoader.getUniqueID(), idx)
-                        boxes.append(box)
-        return boxes
-
-    # -----------------------------------------------------------------
-    # Constructor
-    # -----------------------------------------------------------------
-    def __init__(self, squareSize, imgBorder, resImgList):
-        self._size   = squareSize
-        self._border = imgBorder
-        self._boxes  = self._createBoxes(resImgList)
-        self._out = []
-        self._surface = Surface(0, 0, self._size, self._size)
-
-    def _processInternal3(self):
-        while len(self._boxes) > 0:
-            # take first box
-            box = self._boxes[0]
-            self._boxes = self._boxes[1:]
-            # Split surfaces with current box
-            isOK = self._surface.insertBox(box, self._border)
-            if isOK:
-                self._out.append(box)
-            else:
-                print(f"Impossible to add box {box}")
-                return False
-        return True
-
-
-    def process(self):
-        self._out = []
-        res = self._processInternal3()
-        return res, self._out
-
 
 # =====================================================================
 # RESOURCE LOADER
 # =====================================================================
 class ResourceLoader():
 
-    _uniqueID = 0
-    @staticmethod
-    def getUniqueID():
-        res = ResourceLoader._uniqueID
-        ResourceLoader._uniqueID += 1
-        return res
-
     def _drawAtlas(self, size, packedImgList):
         im1 = Image.new("RGBA",(size,size))
+#        dr1 = ImageDraw.Draw(im1)
         for p in packedImgList:
             im1.paste(p.data, (p.x0,p.y0))
+#            dr1.rectangle( (p.x0,p.y0,p.x1,p.y1), outline=(255,255,0,128) )
         return im1
 
     def _dumpData(self, boxList, dumpPath):
@@ -366,7 +182,7 @@ class ResourceLoader():
         self._textureByID   = {}
 
     def addImage(self, name, imgPath, spriteInfo=None):
-        id     = ResourceLoader.getUniqueID()
+        id     = UniqueID.getID()
         imgRef = ResourceImage(name, imgPath, id, spriteInfo)
         #print(f"[LOADER][ADD] {imgRef}")
         if name in self._images:
@@ -374,10 +190,11 @@ class ResourceLoader():
         self._images[name] = imgRef
 
     # TODO do not regenerate font png file if already exists and not modified
-    def addFont(self, name, fontPath, size=128, border=5, color=(255,255,255,255)):
-        fontAtlasPath = f"atlas/font_{name}.png"
-        fontDataPath  = f"atlas/font_{name}.dat"
+    def addFont(self, name, fontPath, size=128, border=1, color=(255,255,255,255)):
+        fontAtlasPath = f"resources/atlas/font_{name}_{size}_{border}.png"
+        fontDataPath  = f"resources/atlas/font_{name}_{size}_{border}.dat"
         if not exists(fontAtlasPath) or not exists(fontDataPath):
+            print(f"Regenerating {name} font with a size of {size}...")
             # prepare char dimensions
             chars = {}
             # Open font using PIL
@@ -449,15 +266,20 @@ class ResourceLoader():
             fp = open(fontDataPath, "wb")
             pickle.dump(OUT, fp)
             fp.close()
+        else:
+            print(f"{name} font with a size of {size} ad a border of {border} already exists")
+
         # Add font to list
-        self._fonts.append(name)
+        self._fonts.append(f"{name}_{size}_{border}")
 
 
-    def generateImageAtlas(self, squareSize, border, force=False):
+    def generateImageAtlas(self, squareSize, maxSize, border, force=False):
         # Browse all images and get their hash, in order to create the atlas hash
         h = hashlib.sha256()
-        h.update(str(squareSize).encode())
+        # Use maxSize and border
+        h.update(str(maxSize).encode())
         h.update(str(border).encode())
+        # Browse all images
         for name in self._images:
             img = self._images[name]
             h.update(img.hash.encode())
@@ -466,8 +288,9 @@ class ResourceLoader():
             h.update(name.encode())
         d = h.hexdigest()
         atlasHash = d[16:48]
-        atlasPath = f"atlas/atlas_{atlasHash}.png"
-        dumpPath  = f"atlas/atlas_{atlasHash}.dat"
+        # Create file paths
+        atlasPath = f"./resources/atlas/atlas_{atlasHash}.png"
+        dumpPath  = f"./resources/atlas/atlas_{atlasHash}.dat"
 
         # If the hash version of the atlas is not already generated,
         # We have to recreate it from scratch
@@ -477,14 +300,14 @@ class ResourceLoader():
             # Add images from fonts
             for name in self._fonts:
                 # open data for this font
-                fp = open(f"atlas/font_{name}.dat", "rb")
+                fp = open(f"./resources/atlas/font_{name}.dat", "rb")
                 fontData = pickle.load(fp)
                 fp.close()
                 # for each character, create an image
                 for ch in fontData:
                     id = ch
                     info = fontData[ch]
-                    charImg = ResourceImage(f"{name}_{id}", f"atlas/font_{name}.png", id, fontInfo=info)
+                    charImg = ResourceImage(f"{name}_{id}", f"./resources/atlas/font_{name}.png", id, fontInfo=info)
                     self._images[f"{name}_{id}"] = charImg
 
             # First sort images by biggest width then biggest height
@@ -492,8 +315,8 @@ class ResourceLoader():
             lst = sorted(lst, key=lambda x:(-x.spriteWidth,-x.spriteHeight))
 
             # For each image, make it fit into a squareSize structure
-            binPacking   = BinPacking(squareSize, border, lst)
-            res, boxList = binPacking.process()
+            binPacking   = BinPacking(squareSize, maxSize, border, lst)
+            res, boxList, newSquareSize = binPacking.process()
 
             # Create atlasInfo Data (JSON format)
             self._dumpData(boxList, dumpPath)
@@ -501,7 +324,7 @@ class ResourceLoader():
             # when the structure is ready, use PILLOW to create the final atals
             # copy and paste images into it : Add a 2-pixel border with full transparency
             # in order to avoid texture bleeding during rendering
-            im1 = self._drawAtlas(squareSize, boxList)
+            im1 = self._drawAtlas(newSquareSize, boxList)
             im1.save(atlasPath)
             if not res:
                 raise RuntimeError("Impossible to finish the Atlas generation !")
@@ -570,9 +393,9 @@ class ResourceLoader():
         return self._atlasPath
 
     def getTextureImage(self):
-        dirPath  = Path(__file__).parent.resolve()
+        # dirPath  = Path(__file__).parent.resolve()
         filePath = self.getTextureAtlasPath()
-        image = Image.open(f"{dirPath}/{filePath}").convert("RGBA")
+        image = Image.open(filePath).convert("RGBA")
         image = image.transpose(Image.FLIP_TOP_BOTTOM)
         return image
 

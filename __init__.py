@@ -1,9 +1,6 @@
 # __init__.py (pyrogen package)
 from .version import __version__
 
-# Launcher
-from .launcher import Launcher
-
 # Main
 from .ecs.main.entity import Entity
 from .ecs.main.loader import ResourceLoader
