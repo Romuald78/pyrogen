@@ -3,14 +3,17 @@ import array
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-class Gfx():
+from pyrogen.src.pyrogen.ecs3.components.component import Component
+
+
+class Gfx(Component):
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     # ------------------------------------
     #  CONSTANTS
     # ------------------------------------
-    HEADER_SIZE    = 16
+    HEADER_SIZE    = 20
     TYPE_SPRITE    = 1
     TYPE_TEXT      = 2
     TYPE_RECTANGLE = 3
@@ -21,18 +24,24 @@ class Gfx():
     #  LOADER
     # ------------------------------------
     _loader = None
+    _fsgpu  = None
 
     @staticmethod
     def setLoader(loader):
         Gfx._loader = loader
 
+    @staticmethod
+    def setFsGPU(fsgpu):
+        Gfx._fsgpu = fsgpu
+
+
     # ------------------------------------
     #  SLOTS
     # ------------------------------------
-    __slots__ = ['_fsgpu',
-                 '_blockID',
+    __slots__ = ['_blockID',
                  '_writeToFS',
                  '_data',
+                 '_entity',
                 ]
 
     # ------------------------------------
@@ -44,6 +53,7 @@ class Gfx():
                  scale=1.0,
                  x=0.0,
                  y=0.0,
+                 z=0.0,
                  angle=0.0,
                  filterColor=(255,255,255),
                  visOn  = 1.0,
@@ -51,16 +61,20 @@ class Gfx():
                  autoRotate=0.0,
                  anchorX=0.0,
                  anchorY=0.0,
-                 fsgpu=None,
                  dataSize=HEADER_SIZE,
                  gfxType=TYPE_SPRITE,
-                 blockID=0
+                 blockID=0,
+                 name="Gfx",
                  ):
-        self._fsgpu     = fsgpu
+        # Call to mother class constructor
+        super().__init__(Component.TYPE_GFX, name)
+
+        # ENTITY
+        self._entity = None
+
+        # FS GPU data
         self._blockID   = blockID
         self._writeToFS = True
-
-        # > Buffer is array.array
         self._data = array.array("f", [0.0, ] * int(dataSize))
 
         # id = 0-1-2-3 for R-G-B-A
@@ -84,6 +98,8 @@ class Gfx():
         # These values can exceed the sprite size : that means the anchor
         # point will be outside the texture rectangle area
         self.setAnchor(anchorX, anchorY)
+        # id = 16 for Z-Index
+        self.setZIndex(z)
 
     # ------------------------------------
     #  FS GPU
@@ -91,8 +107,8 @@ class Gfx():
     def getBlockID(self):
         return self._blockID
     def getFsGpu(self):
-        return self._fsgpu
-    def getType(self):
+        return Gfx._fsgpu
+    def getGfxType(self):
         return self._data[13]
 
     # ------------------------------------
@@ -232,14 +248,41 @@ class Gfx():
         self._writeToFS = True
 
     # ------------------------------------
+    #  Z-INDEX
+    # ------------------------------------
+    def getZIndex(self):
+        return self._data[16]
+    def setZIndex(self, v):
+        self._data[16] = v
+        self._writeToFS = True
+        # We have to notify the change of Z Index to the Gfx system
+        # We get the entity and the scene to do it
+        if self._entity != None:
+            self._entity.getScene().notifyChangeZ(self)
+
+    # ------------------------------------
+    #  ENTITY LINK
+    # ------------------------------------
+    def setEntity(self, ent):
+        if self._entity != None:
+            raise RuntimeError(f"[ERROR] Impossible to make a link between this component {self} and another entity !")
+        self._entity = ent
+
+    def resetEntity(self, ent):
+        if self._entity != ent:
+            raise RuntimeError(f"[ERROR] Impossible to remove a link between this component {self} and its entity !")
+        self._entity = None
+
+
+
+# ------------------------------------
     #  UPDATE (copy buffer into the GPU texture
     # ------------------------------------
     def update(self, deltaTime):
-        pass
         # update data into FS if needed
         if self._writeToFS:
             #print(f"Writing {self._data} into FS")
-            self._fsgpu.write2Texture(self._blockID, self._data)
+            Gfx._fsgpu.write2Texture(self._blockID, self._data)
             self._writeToFS = False
 
 
@@ -254,7 +297,6 @@ class GfxSprite(Gfx):
     #  SLOTS
     # ------------------------------------
     __slots__ = ['_blockID',
-                 '_fsgpu',
                  ]
 
     # ------------------------------------
@@ -265,6 +307,7 @@ class GfxSprite(Gfx):
                  width=-1, height=-1,
                  x=0.0,
                  y=0.0,
+                 z=0.0,
                  scale=1.0,
                  angle=0.0,
                  visOn=1.0,
@@ -273,7 +316,7 @@ class GfxSprite(Gfx):
                  filterColor=(255,255,255),
                  anchorX=0.0,
                  anchorY=0.0,
-                 fsgpu=None):
+                 name="GfxSprite"):
         NB_VALUES = Gfx.HEADER_SIZE + 4
         # Get texture info from loader
         texture   = Gfx._loader.getTextureByName(textureName)
@@ -286,11 +329,12 @@ class GfxSprite(Gfx):
         if height > 0:
             h = height
         # Allocate buffer in the file system for it
-        self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_SPRITE)
+        self._blockID = Gfx._fsgpu.alloc(NB_VALUES, Gfx.TYPE_SPRITE)
         # Call parent constructor
         super().__init__(w, h,
                          x=x,
                          y=y,
+                         z=z,
                          angle=angle,
                          filterColor=filterColor,
                          scale=scale,
@@ -299,10 +343,10 @@ class GfxSprite(Gfx):
                          autoRotate=autoRotate,
                          anchorX=anchorX,
                          anchorY=anchorY,
-                         fsgpu=fsgpu,
                          dataSize=NB_VALUES,
                          gfxType=Gfx.TYPE_SPRITE,
-                         blockID=self._blockID)
+                         blockID=self._blockID,
+                         name=name)
 
         # Store specific information for this Sprite
         self.setTextureID(textureID)
@@ -330,7 +374,6 @@ class GfxBox(Gfx):
     #  SLOTS
     # ------------------------------------
     __slots__ = ['_blockID',
-                 '_fsgpu',
                  ]
 
     # ------------------------------------
@@ -342,6 +385,7 @@ class GfxBox(Gfx):
                  height=-1,
                  x=0.0,
                  y=0.0,
+                 z=0.0,
                  angle=0.0,
                  visOn=1.0,
                  visTot=1.0,
@@ -349,7 +393,8 @@ class GfxBox(Gfx):
                  filterColor=(255, 255, 255),
                  anchorX=0.0,
                  anchorY=0.0,
-                 fsgpu=None):
+                 name="GfxBox"):
+
         # We need to add
         NB_VALUES = Gfx.HEADER_SIZE + 4
         # if width or height is not filled, use default dimensions
@@ -360,11 +405,12 @@ class GfxBox(Gfx):
         if height > 0:
             h = height
         # Allocate buffer in the file system for it
-        self._blockID = fsgpu.alloc(NB_VALUES, Gfx.TYPE_RECTANGLE)
+        self._blockID = Gfx._fsgpu.alloc(NB_VALUES, Gfx.TYPE_RECTANGLE)
         # Call parent constructor
         super().__init__(w, h,
                          x=x,
                          y=y,
+                         z=z,
                          angle=angle,
                          filterColor=filterColor,
                          visOn=visOn,
@@ -372,10 +418,11 @@ class GfxBox(Gfx):
                          autoRotate=autoRotate,
                          anchorX=anchorX,
                          anchorY=anchorY,
-                         fsgpu=fsgpu,
                          dataSize=NB_VALUES,
                          gfxType=Gfx.TYPE_RECTANGLE,
-                         blockID=self._blockID)
+                         blockID=self._blockID,
+                         name=name)
+
         # Store specific information for this Sprite (colors)
         self.setInColor(inClr)
         # Update the first time it is created

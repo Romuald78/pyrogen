@@ -194,7 +194,7 @@ class ResourceLoader():
         fontAtlasPath = f"resources/atlas/font_{name}_{size}_{border}.png"
         fontDataPath  = f"resources/atlas/font_{name}_{size}_{border}.dat"
         if not exists(fontAtlasPath) or not exists(fontDataPath):
-            print(f"Regenerating {name} font with a size of {size}...")
+            print(f"Regenerating {name} font with a size of {size} and a border of {border}...")
             # prepare char dimensions
             chars = {}
             # Open font using PIL
@@ -267,7 +267,7 @@ class ResourceLoader():
             pickle.dump(OUT, fp)
             fp.close()
         else:
-            print(f"{name} font with a size of {size} ad a border of {border} already exists")
+            print(f"{name} font with a size of {size} and a border of {border} already exists")
 
         # Add font to list
         self._fonts.append(f"{name}_{size}_{border}")
@@ -378,6 +378,7 @@ class ResourceLoader():
 
     def getTextureByName(self, name):
         if name not in self._textureByName:
+            print(self._textureByName.keys())
             raise RuntimeError(f"[ERROR] name:{name} not in texture dict !")
         return self._textureByName[name]
 
