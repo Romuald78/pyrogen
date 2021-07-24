@@ -1,6 +1,5 @@
 import math
 import time
-from array import array
 from random import choice, randint
 
 from .fsgpu_buffer import FsGpuBuffer

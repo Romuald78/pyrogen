@@ -6,7 +6,8 @@ from os.path import exists
 from os import stat
 import hashlib
 import pickle
-from pyrogen.src.pyrogen.ecs3.components.gfx import Gfx
+from ..components.gfx import Gfx
+from ..loader.bin_packing import BinPacking, UniqueID
 
 
 # TODO : for each texture, if not requested, add a dummy "normal" and dummy "specular" texture
@@ -17,7 +18,6 @@ from pyrogen.src.pyrogen.ecs3.components.gfx import Gfx
 # =====================================================================
 # IMAGE / SPRITE SHEET
 # =====================================================================
-from pyrogen.src.pyrogen.ecs3.loader.bin_packing import BinPacking, UniqueID
 
 
 class ResourceImage():
@@ -175,11 +175,13 @@ class ResourceLoader():
         fp.close()
         return objList
 
-    def __init__(self):
+    def __init__(self, atlasDir="."):
         self._fonts         = []
         self._images        = {}
         self._textureByName = {}
         self._textureByID   = {}
+        # Store atla dir
+        self._atlasDir = atlasDir
 
     def addImage(self, name, imgPath, spriteInfo=None):
         id     = UniqueID.getID()
@@ -191,8 +193,8 @@ class ResourceLoader():
 
     # TODO do not regenerate font png file if already exists and not modified
     def addFont(self, name, fontPath, size=128, border=1, color=(255,255,255,255)):
-        fontAtlasPath = f"resources/atlas/font_{name}_{size}_{border}.png"
-        fontDataPath  = f"resources/atlas/font_{name}_{size}_{border}.dat"
+        fontAtlasPath = f"{self._atlasDir}/font_{name}_{size}_{border}.png"
+        fontDataPath  = f"{self._atlasDir}/font_{name}_{size}_{border}.dat"
         if not exists(fontAtlasPath) or not exists(fontDataPath):
             print(f"Regenerating {name} font with a size of {size} and a border of {border}...")
             # prepare char dimensions
@@ -289,8 +291,8 @@ class ResourceLoader():
         d = h.hexdigest()
         atlasHash = d[16:48]
         # Create file paths
-        atlasPath = f"./resources/atlas/atlas_{atlasHash}.png"
-        dumpPath  = f"./resources/atlas/atlas_{atlasHash}.dat"
+        atlasPath = f"{self._atlasDir}/atlas_{atlasHash}.png"
+        dumpPath  = f"{self._atlasDir}/atlas_{atlasHash}.dat"
 
         # If the hash version of the atlas is not already generated,
         # We have to recreate it from scratch
@@ -300,14 +302,14 @@ class ResourceLoader():
             # Add images from fonts
             for name in self._fonts:
                 # open data for this font
-                fp = open(f"./resources/atlas/font_{name}.dat", "rb")
+                fp = open(f"{self._atlasDir}/font_{name}.dat", "rb")
                 fontData = pickle.load(fp)
                 fp.close()
                 # for each character, create an image
                 for ch in fontData:
                     id = ch
                     info = fontData[ch]
-                    charImg = ResourceImage(f"{name}_{id}", f"./resources/atlas/font_{name}.png", id, fontInfo=info)
+                    charImg = ResourceImage(f"{name}_{id}", f"{self._atlasDir}/font_{name}.png", id, fontInfo=info)
                     self._images[f"{name}_{id}"] = charImg
 
             # First sort images by biggest width then biggest height
@@ -338,6 +340,8 @@ class ResourceLoader():
             name = texture["name"]
             self._textureByID[id]     = texture
             self._textureByName[name] = texture
+
+            print(f"{id}-{name}-{texture['x']}-{texture['y']}-{texture['w']}-{texture['h']}")
 
         self._atlasPath  = atlasPath
 

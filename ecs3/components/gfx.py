@@ -3,7 +3,7 @@ import array
 
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-from pyrogen.src.pyrogen.ecs3.components.component import Component
+from .component import Component
 
 
 class Gfx(Component):
@@ -54,6 +54,8 @@ class Gfx(Component):
                  x=0.0,
                  y=0.0,
                  z=0.0,
+                 flipX=False,
+                 flipY=False,
                  angle=0.0,
                  filterColor=(255,255,255),
                  visOn  = 1.0,
@@ -98,8 +100,11 @@ class Gfx(Component):
         # These values can exceed the sprite size : that means the anchor
         # point will be outside the texture rectangle area
         self.setAnchor(anchorX, anchorY)
-        # id = 16 for Z-Index
+        # id = 16 for Z-INDEX
         self.setZIndex(z)
+        # id = 17-18 for FLIPX/FLIPY
+        self.setFlipX(flipX)
+        self.setFlipY(flipY)
 
     # ------------------------------------
     #  FS GPU
@@ -261,6 +266,23 @@ class Gfx(Component):
             self._entity.getScene().notifyChangeZ(self)
 
     # ------------------------------------
+    #  FLIP SPRITE (X/Y)
+    # ------------------------------------
+    def getFlipX(self):
+        return self._data[17]
+    def getFlipY(self):
+        return self._data[18]
+    def setFlipX(self, v):
+        v = 1.0 if v else 0.0
+        self._data[17] = v
+        self._writeToFS = True
+    def setFlipY(self, v):
+        v = 1.0 if v else 0.0
+        self._data[18] = v
+        self._writeToFS = True
+
+
+    # ------------------------------------
     #  ENTITY LINK
     # ------------------------------------
     def setEntity(self, ent):
@@ -275,7 +297,7 @@ class Gfx(Component):
 
 
 
-# ------------------------------------
+    # ------------------------------------
     #  UPDATE (copy buffer into the GPU texture
     # ------------------------------------
     def update(self, deltaTime):
@@ -308,6 +330,8 @@ class GfxSprite(Gfx):
                  x=0.0,
                  y=0.0,
                  z=0.0,
+                 flipX=False,
+                 flipY=False,
                  scale=1.0,
                  angle=0.0,
                  visOn=1.0,
@@ -323,6 +347,7 @@ class GfxSprite(Gfx):
         textureID = texture["id"]
         w         = texture["w"]
         h         = texture["h"]
+        print(f"Load GfxSprite : {textureID}-{textureName}-?-?-{w}-{h}")
         # if width or height is not filled, use the texture dimensions
         if width > 0:
             w = width
@@ -335,6 +360,8 @@ class GfxSprite(Gfx):
                          x=x,
                          y=y,
                          z=z,
+                         flipX=flipX,
+                         flipY=flipY,
                          angle=angle,
                          filterColor=filterColor,
                          scale=scale,
@@ -386,9 +413,12 @@ class GfxBox(Gfx):
                  x=0.0,
                  y=0.0,
                  z=0.0,
+                 flipX=False,
+                 flipY=False,
                  angle=0.0,
                  visOn=1.0,
                  visTot=1.0,
+                 scale=1.0,
                  autoRotate=0.0,
                  filterColor=(255, 255, 255),
                  anchorX=0.0,
@@ -411,8 +441,11 @@ class GfxBox(Gfx):
                          x=x,
                          y=y,
                          z=z,
+                         flipX=flipX,
+                         flipY=flipY,
                          angle=angle,
                          filterColor=filterColor,
+                         scale=scale,
                          visOn=visOn,
                          visTot=visTot,
                          autoRotate=autoRotate,

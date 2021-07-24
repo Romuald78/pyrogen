@@ -6,10 +6,10 @@ import moderngl_window
 import pyglet
 from pyrr import Matrix44
 
-from pyrogen.src.pyrogen.ecs3.components.gfx import Gfx
-from pyrogen.src.pyrogen.ecs3.gpu.fsgpu_main import FsGpuMain
-from pyrogen.src.pyrogen.ecs3.shaders.simple_shader import SimpleShader
-from pyrogen.src.pyrogen.ecs3.systems.gfx_system import GfxSystem
+from ..components.gfx import Gfx
+from ..gpu.fsgpu_main import FsGpuMain
+from ..shaders.simple_shader import SimpleShader
+from ..systems.gfx_system import GfxSystem
 
 
 class OpenGLData():

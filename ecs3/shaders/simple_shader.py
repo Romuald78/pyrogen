@@ -112,6 +112,14 @@ class SimpleShader(Shader):
                 vec2  fsAnchor   = texelFetch( fsGpuChan, fsTexelCoords, 0 ).zw;
                 fsTexelCoords.x += 1;
 
+                // Get Z-Index
+                float fsZIndex = texelFetch( fsGpuChan, fsTexelCoords, 0 ).x;
+                // Get FLIPX and FLIPY
+                vec2 fsFlip = texelFetch( fsGpuChan, fsTexelCoords, 0 ).yz;
+                // TODO : 1 remaining data for future use
+                fsTexelCoords.x += 1;
+
+
                 //-------------------------------------------------------------------
                 // CHECK if this Gfx is visible or not
                 //-------------------------------------------------------------------
@@ -155,6 +163,18 @@ class SimpleShader(Shader):
                     pos1   = pos1 - halfPixel;
                     pos0.y = 1.0-pos0.y;
                     pos1.y = 1.0-pos1.y;
+                    // Flip texture if needed
+                    float tmp;
+                    if (fsFlip.x != 0.0){
+                        tmp    = pos0.x;
+                        pos0.x = pos1.x;
+                        pos1.x = tmp;
+                    }
+                    if (fsFlip.y != 0.0){
+                        tmp    = pos0.y;
+                        pos0.y = pos1.y;
+                        pos1.y = tmp;
+                    }
                 }
                 
                 //==========================================================
@@ -255,79 +275,18 @@ class SimpleShader(Shader):
             in  float gfxType;
             out vec4  fragColor;
 
-            float max3(vec3 v){
-                return max(max(v.x, v.y), v.z);
-            }
-            float min3(vec3 v){
-                return min(min(v.x, v.y), v.z);
+            vec3 RGB2YUV( vec3 rgb ){
+                mat3 matrix = mat3(  0.299, -0.14713,  0.615  ,
+                                     0.587, -0.28886, -0.51498,
+                                     0.114,  0.436  , -0.10001 );
+                return matrix * rgb;             
             }
 
-            vec3 RGB2HSL(vec3 rgb){
-                float maxi  = max3(rgb);
-                float mini  = min3(rgb);
-                float delta = maxi - mini;            
-                
-                float L = (maxi + mini) * 0.5;
-                float S = 0.0;
-                float H = 0.0;
-                if (delta != 0.0){
-                    S = delta/(1-abs(2*L-1));
-                    if (maxi == rgb.r){
-                        float tmp = (rgb.g-rgb.b) / delta;
-                        tmp = fract(tmp/6.0) * 6.0;
-                        H = 60 * tmp;
-                    }
-                    else if(maxi == rgb.g){
-                        float tmp = (rgb.b-rgb.r) / delta;
-                        tmp = tmp + 2.0;
-                        H = 60 * tmp;
-                    }
-                    else if(maxi == rgb.b){
-                        float tmp = (rgb.r-rgb.g) / delta;
-                        tmp = tmp + 4.0;
-                        H = 60 * tmp;
-                    }
-                }
-                                
-                return vec3(H,S,L);
-            }
-            
-            vec3 HSL2RGB(vec3 hsl){
-                float H = hsl.x;
-                float S = hsl.y;
-                float L = hsl.z;
-                float C = (1-abs(2*L-1))*S;
-                float tmp = H/60;
-                tmp = fract(tmp/2.0) * 2.0;
-                float X = (1-abs(tmp-1))*C;
-                float m = L-(C/2.0);
-                vec3 rgb = vec3(0.0);
-                if(H>=0.0 && H<60.0){
-                    rgb.r = C;
-                    rgb.g = X;
-                }
-                else if (H<120.0){
-                    rgb.r = X;
-                    rgb.g = X;                
-                }
-                else if (H<180.0){
-                    rgb.g = C;
-                    rgb.b = X;
-                }
-                else if (H<240.0){
-                    rgb.g = X;
-                    rgb.b = C;
-                }
-                else if (H<300.0){
-                    rgb.r = X;
-                    rgb.b = C;
-                }
-                else if (H<360.0){
-                    rgb.r = C;
-                    rgb.b = X;                
-                }
-                rgb += m;
-                return rgb;
+            vec3 YUV2RGB( vec3 yuv ){
+                mat3 matrix = mat3(  1.0   ,  1.0   , 1.0  ,
+                                     0.0   , -0.3455, 1.779,
+                                     1.4075, -0.7169, 0.0    );
+                return matrix * yuv;             
             }
 
             void main() {
@@ -341,22 +300,22 @@ class SimpleShader(Shader):
                 }
                 
                 // Modify color according to filter                
-                vec3 pixel  = RGB2HSL(color.xyz);                
-                vec3 filter = RGB2HSL(filterColor.xyz);
+                vec3 pixel  = RGB2YUV(color.xyz);                
+                vec3 filter = RGB2YUV(filterColor.xyz);
+
                 // Lightness
-                pixel.z = (pixel.z * filter.z);                
-                // Hue
-                pixel.x = filter.x;
-                // Saturation
-                pixel.y = max(pixel.y, filter.y);
+                pixel.x = (pixel.x * filter.x);                
+                // Color
+                pixel.yz = (pixel.yz + filter.yz) * 0.5;
+
                 // Transform to RGB back
-                pixel = HSL2RGB(pixel);
+                pixel = YUV2RGB(pixel);
                 
                 color.xyz = pixel;
                 
                 // Handle Transparency
                 color.a  *= filterColor.a;
-                 
+
                 // Set pixel color
                 fragColor = color; 
             }

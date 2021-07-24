@@ -1,4 +1,4 @@
-from pyrogen.src.pyrogen.ecs3.main.world import World
+from .world import World
 
 
 class Scene():

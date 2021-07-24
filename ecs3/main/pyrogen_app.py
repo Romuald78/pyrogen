@@ -2,9 +2,9 @@
 import pyglet
 import cProfile
 
-from pyrogen.src.pyrogen.ecs3.loader.loader import ResourceLoader
-from pyrogen.src.pyrogen.ecs3.gpu.opengl_data import OpenGLData
-from pyrogen.src.pyrogen.ecs3.shaders.simple_shader import SimpleShader
+from ..loader.loader import ResourceLoader
+from ..gpu.opengl_data import OpenGLData
+from ..systems.scene_system import SceneSystem
 
 
 # ========================================================
@@ -19,7 +19,6 @@ from pyrogen.src.pyrogen.ecs3.shaders.simple_shader import SimpleShader
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-from pyrogen.src.pyrogen.ecs3.systems.scene_system import SceneSystem
 
 DEBUG_NB_SPRITES     = 100000
 DEBUG_MOVING_SPRITES = False
@@ -199,13 +198,16 @@ class PyrogenApp(pyglet.window.Window):
     # ========================================================
     #  CONSTRUCTOR
     # ========================================================
-    def __init__(self, fsGpuMemSize= 8*1024*1024*4, *args, **kwargs, ):
+    def __init__(self,
+                 atlasDir=".",
+                 fsGpuMemSize= 8*1024*1024*4,
+                 *args, **kwargs, ):
         # Parent constructor
         super().__init__(*args, **kwargs)
         # Gamepads
         self._loadGamepads()
         # initiate the resource loader
-        self._loader = ResourceLoader()
+        self._loader = ResourceLoader(atlasDir)
         # GL Stuff
         self._openGlData = OpenGLData(self._loader, fsGpuMemSize)
         # Profiling

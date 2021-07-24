@@ -1,5 +1,5 @@
-from pyrogen.src.pyrogen.ecs3.components.component import Component
-from pyrogen.src.pyrogen.ecs3.systems.gfx_system import GfxSystem
+from ..components.component import Component
+from ..systems.gfx_system import GfxSystem
 
 
 class World():
