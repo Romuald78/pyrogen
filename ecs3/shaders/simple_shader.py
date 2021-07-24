@@ -9,14 +9,14 @@ class SimpleShader(Shader):
         return """
             #version 330
             
-            # ------------ FILE SYSTEM ----------------
+            // ------------ FILE SYSTEM ----------------
             #define PAGE_SIZE_BITS (16)
             #define PAGE_NUM_BITS  (16)            
             #define OFFSET_MASK    ((1<<PAGE_SIZE_BITS)-1)
             #define PAGE_MASK      ( ((1<<PAGE_NUM_BITS )-1) << PAGE_SIZE_BITS )
             #define OVERHEAD       (1)
 
-            # ------------ GFX TYPES ----------------
+            // ------------ GFX TYPES ----------------
             #define TYPE_SPRITE    (1)
             #define TYPE_TEXT      (2)
             #define TYPE_RECTANGLE (3)
@@ -301,12 +301,12 @@ class SimpleShader(Shader):
                 
                 // Modify color according to filter                
                 vec3 pixel  = RGB2YUV(color.xyz);                
-                vec3 filter = RGB2YUV(filterColor.xyz);
+                vec3 fltClr = RGB2YUV(filterColor.xyz);
 
                 // Lightness
-                pixel.x = (pixel.x * filter.x);                
+                pixel.x = (pixel.x * fltClr.x);                
                 // Color
-                pixel.yz = (pixel.yz + filter.yz) * 0.5;
+                pixel.yz = (pixel.yz + fltClr.yz) * 0.5;
 
                 // Transform to RGB back
                 pixel = YUV2RGB(pixel);
