@@ -243,51 +243,11 @@ class PyrogenApp(pyglet.window.Window):
         # this will update the world and all the systems inside
         self._scnMgr.updateScene(deltaTime)
 
-        # Update the openGL data
-        self._openGlData.update(deltaTime)
-
-#        # TODO [-----------------------------------------------------------------------]
-#        # update moving sprites if needed
-#        if DEBUG_MOVING_SPRITES:
-#            self._spriteMgr.updateMovingSprites(self._elapsedTime, (self.width, self.height))
-#        else:
-#            self._spriteMgr.updateFixedSprites (self._elapsedTime, (self.width, self.height))
-#        # TODO [-----------------------------------------------------------------------]
-#
-#        # TODO [-----------------------------------------------------------------------]
-#        # TODO : use the selected camera properties
-#        # update viewport if not moving sprites
-#        if not DEBUG_MOVING_SPRITES:
-#            squareSize = int(round(math.sqrt(DEBUG_NB_SPRITES), 0))
-#            w, h = self.ctx.screen.size
-#            a = math.cos(self._elapsedTime / 19) * math.cos(3 * self._elapsedTime / 10)
-#            a = a * a
-#            zoom = 6 * a + 0.25  # zoom beween 0.25 and 6.25
-#            W2 = (squareSize*32) - w*zoom + 64
-#            H2 = (squareSize*32) - h*zoom + 64
-#            x0 = int((0.5*math.cos(self._elapsedTime / 31) + 0.5) * W2) - 48
-#            y0 = int((0.5*math.sin(self._elapsedTime / 29) + 0.5) * H2) - 48
-#            w   *= zoom
-#            h   *= zoom
-#            self._setViewPort( x0, y0, x0+w, y0+h )
-#        # TODO [-----------------------------------------------------------------------]
 
     # ========================================================
     #  RENDER METHOD
     # ========================================================
     def on_draw(self):
-
-        self._openGlData.render()
-
-#        # TODO [-----------------------------------------------------------------------]
-#        # TODO use the current list of scene gfx components
-#        # Write sprite info into the vertex array
-#        if DEBUG_MOVING_SPRITES:
-#            vd = array("l", self._spriteMgr.genVertex())
-#            self._openGlData.set("vertexData", vd)
-#        # TODO [-----------------------------------------------------------------------]
-#
-
         # Render the current scene
         self._scnMgr.renderScene()
 

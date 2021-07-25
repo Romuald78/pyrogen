@@ -224,9 +224,9 @@ class OpenGLData():
     def createAtlas(self):
         self._loadAtlas()
 
-    def update(self, deltaTime):
+    def update(self, deltaTime, systemTime):
         # update elapsed time and copy it into the uniform var
-        self._elapsedTime += deltaTime
+        self._elapsedTime = systemTime
         self._program["systemTime"] = self._elapsedTime
 
         # Process File system

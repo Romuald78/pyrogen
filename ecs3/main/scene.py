@@ -14,6 +14,8 @@ class Scene():
         # Entity list
         self._entitiesByName = {}
         self._entitiesByRef  = []
+        # System time for this scene
+        self._systemTime = 0
 
     # ========================================================
     # Application process
@@ -22,7 +24,8 @@ class Scene():
         self._scnMgr = ref
 
     def updateWorld(self, deltaTime):
-        self._world.updateSystems(deltaTime)
+        self._systemTime += deltaTime
+        self._world.updateSystems(deltaTime, self._systemTime)
 
     def renderWorld(self):
         self._world.renderSystems()

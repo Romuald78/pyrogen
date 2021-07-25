@@ -41,7 +41,6 @@ class Gfx(Component):
     __slots__ = ['_blockID',
                  '_writeToFS',
                  '_data',
-                 '_entity',
                 ]
 
     # ------------------------------------
@@ -70,9 +69,6 @@ class Gfx(Component):
                  ):
         # Call to mother class constructor
         super().__init__(Component.TYPE_GFX, name)
-
-        # ENTITY
-        self._entity = None
 
         # FS GPU data
         self._blockID   = blockID
@@ -280,21 +276,6 @@ class Gfx(Component):
         v = 1.0 if v else 0.0
         self._data[18] = v
         self._writeToFS = True
-
-
-    # ------------------------------------
-    #  ENTITY LINK
-    # ------------------------------------
-    def setEntity(self, ent):
-        if self._entity != None:
-            raise RuntimeError(f"[ERROR] Impossible to make a link between this component {self} and another entity !")
-        self._entity = ent
-
-    def resetEntity(self, ent):
-        if self._entity != ent:
-            raise RuntimeError(f"[ERROR] Impossible to remove a link between this component {self} and its entity !")
-        self._entity = None
-
 
 
     # ------------------------------------
