@@ -1,5 +1,13 @@
-
+import platform
 import pyglet
+
+# ---------------------------------------------------------------
+# On OS X we need to disable the shadow context
+# because the 2.1 shadow context cannot be upgrade to a 3.3+ core
+if platform.system() == "Darwin":
+    pyglet.options["shadow_window"] = False
+# ---------------------------------------------------------------
+
 import cProfile
 
 from ..loader.loader import ResourceLoader
@@ -19,14 +27,52 @@ from ..systems.scene_system import SceneSystem
 # ========================================================
 # DEBUG PARAMS
 # ========================================================
-
-DEBUG_NB_SPRITES     = 100000
-DEBUG_MOVING_SPRITES = False
 DEBUG_DISPLAY_PERFS  = False
 
 
-class PyrogenApp(pyglet.window.Window):
+class Pyrogen():
 
+    def __init__(self,
+                 atlasDir=".",
+                 fsGpuMemSize= 8*1024*1024*4,
+                 *args, **kwargs):
+
+        # Create GL config
+        cfg = pyglet.gl.Config(
+            major_version=3,
+            minor_version=3,
+            forward_compatible=True,
+            depth_size=24,
+            double_buffer=True,
+            sample_buffers=1,
+            samples=4,
+        )
+
+        # Instanciate Window
+        self._pyrogenWin = PyrogenWindow(atlasDir=atlasDir,
+                                     fsGpuMemSize=fsGpuMemSize,
+                                     config=cfg,
+                                     *args, **kwargs)
+
+    def addImage(self, name, path, spriteInfo=None):
+        self._pyrogenWin.addImage(name, path, spriteInfo)
+
+    def addFont(self, name, path, size=128, border=1):
+        self._pyrogenWin.addFont(name, path, size, border)
+
+    def finalizeResources(self):
+        self._pyrogenWin.finalizeResources()
+
+    def addScene(self, name, ref):
+        self._pyrogenWin.addScene(name, ref)
+
+    def run(self):
+        self._pyrogenWin.run()
+
+
+
+
+class PyrogenWindow(pyglet.window.Window):
 
     # ========================================================
     #  EVENTS
@@ -57,7 +103,6 @@ class PyrogenApp(pyglet.window.Window):
             analogValue *= -1
         print(f"<GAMEPAD-AXIS> gamePadID=({gamepadID}) axisID=({axisID}) value={analogValue}")
         self._scnMgr.gamepadAxisEvent(gamepadID, axisID, analogValue)
-
 
     # ========================================================
     #  PYGLET CALLBACKS
@@ -118,7 +163,6 @@ class PyrogenApp(pyglet.window.Window):
                 g.on_joyaxis_motion    = self.on_joystick_motion
                 g.on_joyhat_motion     = self.on_joystick_hat
                 print(f"    ID : #{i-1} - NAME : {g.device.name}")
-
 
     # ========================================================
     #  PERFORMANCE DISPLAY (DEBUG)
@@ -194,7 +238,6 @@ class PyrogenApp(pyglet.window.Window):
             cp = o["cumpercall"]
             print(f"{fi}/{me} ({li})\t{nc}\t{tt}\t{tp}\t{ct}\t{cp}")
 
-
     # ========================================================
     #  CONSTRUCTOR
     # ========================================================
@@ -215,7 +258,6 @@ class PyrogenApp(pyglet.window.Window):
         # Create scene manager
         self._scnMgr = SceneSystem()
 
-
     # ========================================================================
     #  RESOURCES
     # ========================================================================
@@ -227,7 +269,6 @@ class PyrogenApp(pyglet.window.Window):
         self._openGlData.createAtlas()
     def addScene(self, name, ref):
         self._scnMgr.registerScene(name, ref)
-
 
     # ========================================================
     #  UPDATE METHOD
@@ -243,7 +284,6 @@ class PyrogenApp(pyglet.window.Window):
         # this will update the world and all the systems inside
         self._scnMgr.updateScene(deltaTime)
 
-
     # ========================================================
     #  RENDER METHOD
     # ========================================================
@@ -251,14 +291,14 @@ class PyrogenApp(pyglet.window.Window):
         # Render the current scene
         self._scnMgr.renderScene()
 
-
-
     # ========================================================
     #  RESIZE APPLICATION WINDOW
     # ========================================================
     def on_resize(self, width, height):
         pass
 #        self.ctx.screen.viewport = 0, 0, *self.get_framebuffer_size()
+#  check window.get_pixel_ratio() to be sure of the physical screen size
+
 
     # ========================================================
     #  MAIN LOOP
@@ -280,17 +320,4 @@ class PyrogenApp(pyglet.window.Window):
         if DEBUG_DISPLAY_PERFS:
             cpr.disable()
             self._displayPerfs(cpr)
-
-
-
-
-
-
-
-
-
-
-
-
-
 

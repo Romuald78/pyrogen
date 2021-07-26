@@ -1,10 +1,10 @@
 import pathlib
 
 try:
-    from pyrogen.ecs3.main.pyrogen_app import PyrogenApp
+    from pyrogen.ecs3.main.pyrogen_app import Pyrogen
     from pyrogen.tutorials.dev_test.scenes.dev_test_scene import FpsTest
 except:
-    from pyrogen.src.pyrogen.ecs3.main.pyrogen_app import PyrogenApp
+    from pyrogen.src.pyrogen.ecs3.main.pyrogen_app import Pyrogen
     from pyrogen.src.pyrogen.tutorials.dev_test.scenes.dev_test_scene import FpsTest
 
 
@@ -16,11 +16,11 @@ def main():
     # -----------------------------------------------------------
     # INSTANCIATE APPLICATION
     # -----------------------------------------------------------
-    app    = PyrogenApp(width=1920,
-                        height=1080,
-                        vsync=False,
-                        atlasDir=f"{rootDir}/resources/atlas",
-                        fsGpuMemSize=1*1024*1024*4)
+    app    = Pyrogen(width=1920,
+                     height=1080,
+                     vsync=False,
+                     atlasDir=f"{rootDir}/resources/atlas",
+                     fsGpuMemSize=1*1024*1024*4)
 
     # -----------------------------------------------------------
     # ADD IMAGE RESOURCES

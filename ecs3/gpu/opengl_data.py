@@ -3,7 +3,6 @@ from array import array
 
 import moderngl
 import moderngl_window
-import pyglet
 from pyrr import Matrix44
 
 from ..components.gfx import Gfx
@@ -28,16 +27,6 @@ class OpenGLData():
     #  PRIVATE METHODS
     # ========================================================================
     def _initCfg(self):
-        # GL config
-        self.cfg = pyglet.gl.Config(
-            major_version=3,
-            minor_version=3,
-            forward_compatible=True,
-            depth_size=24,
-            double_buffer=True,
-            sample_buffers=1,
-            samples=4,
-        )
         # GL context
         self.ctx = moderngl.create_context(require=330)
         moderngl_window.activate_context(ctx=self.ctx)
@@ -182,25 +171,17 @@ class OpenGLData():
         # > Diffuse data
         #    - (X,Y) top left position
         #    - (W,H) size
-        # > Normal data
-        #    - (X,Y) top left position
-        #    - (W,H) size
-        # > Specular Data
-        #    - (X,Y) top left position
-        #    - (W,H) size
         nbTextures       = self._loader.getNbTextures()
-        nbDataPerTexture = 3
-        nbDataPerHeader  = 0
+        nbDataPerTexture = 1
         nbComponents     = 4
         width            = nbTextures * nbDataPerTexture
-        nbTexels         = width * nbComponents
-        overhead         = nbDataPerHeader * nbComponents # 3 values
+        nbBytes          = width * nbComponents
         # Prepare texture
         self._atlasInfo = self.ctx.texture((width, 1), nbComponents, dtype="u4")
         self._atlasInfo.filter = (moderngl.NEAREST, moderngl.NEAREST)
 
         # Write texture positions and sizes
-        data = array("L", [0,] * (nbTexels+overhead) )
+        data = array("I", [0,] * (nbBytes) )
         allIDs = self._loader.getAllIds()
         for id in allIDs:
             data[4*id+0] = self._loader.getTextureById(id)["x"]
