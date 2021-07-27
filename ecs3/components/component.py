@@ -2,8 +2,11 @@
 
 class Component():
 
-    TYPE_GFX    = 1
-    TYPE_SCRIPT = 2
+    TYPE_GFX          = 1
+    TYPE_SCRIPT       = 2
+    TYPE_KEY          = 3
+    TYPE_PAD_BUTTON   = 4
+    TYPE_MOUSE_BUTTON = 4
 
     # ------------------------------------
     #  SLOTS
@@ -24,6 +27,9 @@ class Component():
     def getType(self):
         return self._type
 
+    def getPriority(self):
+        return 0
+
     # ------------------------------------
     #  ENTITY LINK
     # ------------------------------------
@@ -37,3 +43,11 @@ class Component():
             raise RuntimeError(f"[ERROR] Impossible to remove a link between this component {self} and its entity !")
         self._entity = None
 
+    # ------------------------------------
+    #  SCENE LINK
+    # ------------------------------------
+    def getScene(self):
+        res = None
+        if self._entity != None:
+            res = self._entity.getScene()
+        return res

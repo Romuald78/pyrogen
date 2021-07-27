@@ -1,7 +1,11 @@
-from ....ecs3.components.gfx import GfxSprite, GfxBox
-from ....ecs3.main.entity import Entity
-from ....ecs3.main.scene import Scene
+from ....ecs3.main.scene       import Scene
+from ....ecs3.main.entity      import Entity
+from ....ecs3.components.gfx   import GfxSprite, GfxBox
+from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton
 from ..components.scripts import MoveCircle, MoveSquare
+
+import pyglet.window.key as keys
+
 
 import random
 
@@ -13,8 +17,8 @@ class FpsTest(Scene):
 
 
         # Prepare number of Gfx components
-        NX = 79
-        NY = 38
+        NX = 70
+        NY = 35
         N = NX * NY
 
         for i in range(N):
@@ -35,7 +39,7 @@ class FpsTest(Scene):
                 h = random.randint(46,50)
                 mySprite = GfxBox(inClr=clr, width=w, height=h)
             # Position
-            x = (i % NX) * (1920//NX)
+            x = (i %  NX) * (1920//NX)
             y = (i // NX) * (1080//NY)
             mySprite.setX(x)
             mySprite.setY(y)
@@ -52,14 +56,23 @@ class FpsTest(Scene):
             # Create script to move sprite
             radius = random.randint(30,300)
             speed  = random.randint(-360,360)
-            if random.random()<0.5:
-                scrMove = MoveCircle(mySprite, (x,y), radius, speed)
-            else:
-                scrMove = MoveSquare(mySprite, (x, y), radius, speed)
 
             # -------------------------------------
-            # Add both components into entity
+            # Add input components to move all the sprites
+            keyboard = Keyboard()
+            if i%2 == 1:
+                keyboard.addKey(keys.UP, "moveUp")
+                keyboard.addKey(keys.DOWN, "moveDown")
+                scrMove = MoveCircle(mySprite, (x,y), radius, speed, keyboard)
+            else:
+                keyboard.addKey(keys.LEFT, "moveLeft")
+                keyboard.addKey(keys.RIGHT, "moveRight")
+                scrMove = MoveSquare(mySprite, (x, y), radius, speed, keyboard)
+
+            # -------------------------------------
+            # Add all components into entity
             entity.addComponent(mySprite)
+            entity.addComponent(keyboard)
             entity.addComponent(scrMove)
 
             # -------------------------------------

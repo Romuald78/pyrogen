@@ -258,8 +258,9 @@ class Gfx(Component):
         self._writeToFS = True
         # We have to notify the change of Z Index to the Gfx system
         # We get the entity and the scene to do it
-        if self._entity != None:
-            self._entity.getScene().notifyChangeZ(self)
+        scn = self.getScene()
+        if scn != None:
+            scn.notifyChangeZ(self)
 
     # ------------------------------------
     #  FLIP SPRITE (X/Y)

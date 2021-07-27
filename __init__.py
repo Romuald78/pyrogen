@@ -9,5 +9,6 @@ from .ecs3.main.scene       import Scene
 # Components
 from .ecs3.components.gfx    import GfxSprite, GfxBox
 from .ecs3.components.script import Script
+from .ecs3.components.input  import Keyboard, GamepadButton, MouseButton
 
 

@@ -78,30 +78,30 @@ class PyrogenWindow(pyglet.window.Window):
     #  EVENTS
     # ========================================================
     def _keyboardEvent(self, keyID, isPressed, modifiers):
-        print(f"<KEY> id={keyID} isPressed={isPressed} modifiers={modifiers}")
+        #print(f"<KEY> id={keyID} isPressed={isPressed} modifiers={modifiers}")
         self._scnMgr.keyboardEvent(keyID, isPressed, modifiers)
     def _mouseButtonEvent(self, x, y, buttonID, isPressed, modifiers):
         y = self.height-y
-        print(f"<MOUSE-BUTTON> position=({x},{y}) buttonID={buttonID} isPressed={isPressed} modifiers={modifiers}")
+        #print(f"<MOUSE-BUTTON> position=({x},{y}) buttonID={buttonID} isPressed={isPressed} modifiers={modifiers}")
         self._scnMgr.mouseButtonEvent(x, y, buttonID, isPressed, modifiers)
     def _mouseMotionEvent(self, x, y, dx, dy):
         dy = -dy
-        print(f"<MOUSE-MOVE> position=({x},{y}) direction=({dx},{dy})")
+        #print(f"<MOUSE-MOVE> position=({x},{y}) direction=({dx},{dy})")
         self._scnMgr.mouseMotionEvent(x, y, dx, dy)
     def _mouseDragEvent(self, x, y, dx, dy, buttonID, modifiers):
         dy = -dy
-        print(f"<MOUSE-DRAG> position=({x},{y}) direction=({dx},{dy}) buttonID={buttonID} modifiers={modifiers}")
+        #print(f"<MOUSE-DRAG> position=({x},{y}) direction=({dx},{dy}) buttonID={buttonID} modifiers={modifiers}")
         self._scnMgr.mouseDragEvent(x, y, dx, dy, buttonID, modifiers)
     def _mouseScrollEvent(self, x, y, dx, dy):
-        print(f"<MOUSE-SCROLL> position=({x},{y}) direction=({dx},{dy})")
+        #print(f"<MOUSE-SCROLL> position=({x},{y}) direction=({dx},{dy})")
         self._scnMgr.mouseScrollEvent(x, y, dx, dy)
     def _gamepadButtonEvent(self, gamepadID, buttonID, isPressed):
-        print(f"<GAMEPAD-BUTTON> gamePadID=({gamepadID}) buttonID=({buttonID}) isPressed={isPressed}")
+        #print(f"<GAMEPAD-BUTTON> gamePadID=({gamepadID}) buttonID=({buttonID}) isPressed={isPressed}")
         self._scnMgr.gamepadButtonEvent(gamepadID, buttonID, isPressed)
     def _gamepadAxisEvent(self, gamepadID, axisID, analogValue):
         if axisID == "z":
             analogValue *= -1
-        print(f"<GAMEPAD-AXIS> gamePadID=({gamepadID}) axisID=({axisID}) value={analogValue}")
+        #print(f"<GAMEPAD-AXIS> gamePadID=({gamepadID}) axisID=({axisID}) value={analogValue}")
         self._scnMgr.gamepadAxisEvent(gamepadID, axisID, analogValue)
 
     # ========================================================

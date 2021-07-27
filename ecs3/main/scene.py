@@ -77,11 +77,16 @@ class Scene():
     def unregisterComponent(self, ref):
         self._world.unregisterComponent(ref)
 
+
     # ========================================================
     # Specific events
     # ========================================================
     def notifyChangeZ(self, ref):
         self._world.notifyChangeZ(ref)
+
+    def notifyChangeScriptPriority(self, ref):
+        self._world.notifyChangeScriptPriority(ref)
+
 
     # ========================================================
     # Events

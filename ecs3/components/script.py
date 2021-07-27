@@ -12,6 +12,10 @@ class Script(Component):
 
     def setPriority(self, newP):
         self._priority = newP
+        scn = self.getScene()
+        if scn != None:
+            scn.notifyChangeScriptPriority(self)
 
     def getPriority(self):
         return self._priority
+
