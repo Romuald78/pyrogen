@@ -170,21 +170,25 @@ class PyrogenWindow(pyglet.window.Window):
     def _displayPerfs(self, cpr):
         # List methods under supervision
         watchMethods = [
-            #                    "render",
-            #                    "update",
-            "updateMovingSprites",
-            #                    "write",
-            #                    "_write",
-            #                    "_verifCHK",
-            #                    "_computeCHK",
-            #                    "_explodeID",
-            #                    "genVertex",
-            #                    "writeBlock",
-            #                    "getData",
-            #                    "on_draw"
+            "updateScript",
+            #"render",
+            #"update",
+            #"updateMovingSprites",
+            #"write",
+            #"_write",
+            #"_verifCHK",
+            #"_computeCHK",
+            #"_explodeID",
+            #"genVertex",
+            #"writeBlock",
+            #"getData",
+            #"on_draw"
         ]
         watchFiles = [
-            #            "gfx_components",
+            "script_system",
+            "input_system",
+            "gfx_system",
+            #"gfx_components",
         ]
         # Get stats of execution : parse them
         st = cpr.getstats()
@@ -227,6 +231,7 @@ class PyrogenWindow(pyglet.window.Window):
                             "cumpercall": str(1000 * row[3] / row[1]).replace(".", ","),
                             })
         out = sorted(out, key=lambda x: (x["file"], x["method"]))
+        print("PERFS")
         for o in out:
             me = o["method"]
             fi = o["file"]

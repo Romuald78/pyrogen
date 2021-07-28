@@ -2,6 +2,8 @@
 
 class BaseSystem():
 
+    __slots__ = ["_compByRef",]
+
     # Recursive Dichotomy method to add the component at the correct place (sorted by priority)
     def _addComponent(self, ref, left, right):
         # Compute middle index

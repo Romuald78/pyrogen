@@ -48,10 +48,7 @@ class MoveSquare(Script):
 
         # Set the position according to the speed and system time
         ratio = self._speed*systemTime/360
-        while ratio < 0.0:
-            ratio += 1.0
-        while ratio > 1.0:
-            ratio -= 1.0
+        ratio = ratio - int(ratio)
         if ratio <0.25:
             x = 2*self._radius * ratio *4 - self._radius + self._center[0]
             y = - self._radius + self._center[1]
@@ -67,4 +64,24 @@ class MoveSquare(Script):
 
         self._gfx.setX(x)
         self._gfx.setY(y)
+
+
+class ShowHide(Script):
+
+    def __init__(self, gfx, pad, name="ShowHide"):
+        super().__init__(0, name)
+        self._gfx = gfx
+        self._pad = pad
+
+    def updateScript(self, deltaTime, systemTime):
+        if self._pad.hasBeenPressed("Hide"):
+            self._gfx.hide()
+        if self._pad.hasBeenPressed("Show"):
+            self._gfx.show()
+        if self._pad.hasBeenPressed("Enlarge"):
+            scale = self._gfx.getScale()
+            self._gfx.setScale(scale * 1.5)
+        if self._pad.hasBeenPressed("Reduce"):
+            scale = self._gfx.getScale()
+            self._gfx.setScale(scale / 1.5)
 

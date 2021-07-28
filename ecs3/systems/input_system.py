@@ -18,6 +18,7 @@ class GamepadSystem(BaseSystem):
         super().__init__()
 
     def gamepadButtonEvent(self, gamepadID, buttonID, isPressed):
+        print(f"Pad:{gamepadID} - button:{buttonID} - isPressed:{isPressed}")
         # Update all the Script components
         for c in self._compByRef:
             ID = f"G-{gamepadID}-{buttonID}"

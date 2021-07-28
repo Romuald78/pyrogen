@@ -38,6 +38,8 @@ class World():
             self._scrSys.addComponent(ref)
         elif type== Component.TYPE_KEY:
             self._keySys.addComponent(ref)
+        elif type == Component.TYPE_PAD_BUTTON:
+            self._padSys.addComponent(ref)
         else:
             raise RuntimeError("[ERROR] Cannot add the component in any system !")
 

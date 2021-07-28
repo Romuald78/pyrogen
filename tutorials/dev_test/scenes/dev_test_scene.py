@@ -1,8 +1,8 @@
 from ....ecs3.main.scene       import Scene
 from ....ecs3.main.entity      import Entity
 from ....ecs3.components.gfx   import GfxSprite, GfxBox
-from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton
-from ..components.scripts import MoveCircle, MoveSquare
+from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton, Buttons
+from ..components.scripts import MoveCircle, MoveSquare, ShowHide
 
 import pyglet.window.key as keys
 
@@ -15,6 +15,26 @@ class FpsTest(Scene):
     def __init__(self):
         super().__init__()
 
+        # Main Sprite
+        mainCharacter = Entity()
+        # Create components
+        mySprite = GfxSprite(f"characters_0")
+        mySprite.setX(960)
+        mySprite.setY(540)
+        mySprite.setZIndex(10000)
+        mySprite.setScale(4)
+        padButtons = GamepadButton()
+        padButtons.addButton(0, Buttons.A , "Hide")
+        padButtons.addButton(0, Buttons.B , "Show")
+        padButtons.addButton(0, Buttons.LB, "Enlarge")
+        padButtons.addButton(0, Buttons.RB, "Reduce")
+        scrShowHide = ShowHide(mySprite, padButtons)
+        # add components to entity
+        mainCharacter.addComponent(mySprite)
+        mainCharacter.addComponent(padButtons)
+        mainCharacter.addComponent(scrShowHide)
+        # add entity to scene
+        self.addEntity(mainCharacter)
 
         # Prepare number of Gfx components
         NX = 70
@@ -43,6 +63,7 @@ class FpsTest(Scene):
             y = (i // NX) * (1080//NY)
             mySprite.setX(x)
             mySprite.setY(y)
+            mySprite.setZIndex(i+100)
 #            mySprite.setAnchor(-16,-24)
             mySprite.setAutoRotate( random.randint(0,360) )
 #            mySprite.setAngle( random.randint(0,360) )

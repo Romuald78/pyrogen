@@ -1,9 +1,33 @@
 from .component import Component
 
+
+class Buttons():
+
+    A      = 0
+    B      = 1
+    X      = 2
+    Y      = 3
+    LB     = 4
+    RB     = 5
+    VIEW   = 6
+    MENU   = 7
+    LSTICK = 8
+    RSTICK = 9
+
+
+
 # ============================================================
 # Storage of any action status
 # ============================================================
 class LogicStatus():
+
+    __slots__ = ["_state",
+                 "_risingEdge",
+                 "_fallingEdge",
+                 "_modifiers",
+                 "_lastX",
+                 "_lastY",
+                 ]
 
     def __init__(self):
         self._state       = False
@@ -50,6 +74,10 @@ class LogicStatus():
 # ============================================================
 class LogicButton(Component):
 
+    __slots__ = ["_buttons",
+                 "_actions",
+                 ]
+
     def __init__(self, type, name="LogicButton"):
         super().__init__(type, name)
         # Contains the action names for each key id
@@ -75,7 +103,7 @@ class LogicButton(Component):
     # ID : "K" + keyID for keyboard
     #      "G" + gamepadID + buttonID for gamepads
     #      "M" + buttonID for mouse
-    def notifyEvent(self, ID, isPressed, modifiers, x=0, y=0):
+    def notifyEvent(self, ID, isPressed, modifiers=None, x=0, y=0):
         if ID in self._buttons:
             names = self._buttons[ID]
             for name in names:
@@ -111,6 +139,8 @@ class LogicButton(Component):
 # ============================================================
 class Keyboard(LogicButton):
 
+    __slots__ = []
+
     def __init__(self, name="Keyboard"):
         super().__init__(Component.TYPE_KEY, name)
 
@@ -128,6 +158,8 @@ class Keyboard(LogicButton):
 # ============================================================
 class GamepadButton(LogicButton):
 
+    __slots__ = []
+
     def __init__(self, name="GamepadButton"):
         super().__init__(Component.TYPE_PAD_BUTTON, name)
 
@@ -144,6 +176,8 @@ class GamepadButton(LogicButton):
 # MOUSE BUTTONS
 # ============================================================
 class MouseButton(LogicButton):
+
+    __slots__ = []
 
     def __init__(self, name="GamepadButton"):
         super().__init__(Component.TYPE_PAD_BUTTON, name)

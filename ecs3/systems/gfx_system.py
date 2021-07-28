@@ -30,11 +30,11 @@ class GfxSystem():
                 return
             elif newZ > curZ:
                 # move left border
-                left += 1
+                left = mid+1
                 self._addComponent(ref, left, right)
             else:
                 # move left border
-                right -= 1
+                right = mid-1
                 self._addComponent(ref, left, right)
 
     def _genVertexBuffer(self):
