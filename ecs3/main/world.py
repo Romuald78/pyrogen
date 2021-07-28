@@ -29,7 +29,6 @@ class World():
 
     # Component registering
     def registerComponent(self, ref):
-        ###print(f"Registering a component : {ref}")
         # Check component type
         type = ref.getType()
         if type == Component.TYPE_GFX:
@@ -40,6 +39,8 @@ class World():
             self._keySys.addComponent(ref)
         elif type == Component.TYPE_PAD_BUTTON:
             self._padSys.addComponent(ref)
+        elif type == Component.TYPE_MOUSE_BUTTON:
+            self._mouseSys.addComponent(ref)
         else:
             raise RuntimeError("[ERROR] Cannot add the component in any system !")
 

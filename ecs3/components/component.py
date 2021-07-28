@@ -6,7 +6,7 @@ class Component():
     TYPE_SCRIPT       = 2
     TYPE_KEY          = 3
     TYPE_PAD_BUTTON   = 4
-    TYPE_MOUSE_BUTTON = 4
+    TYPE_MOUSE_BUTTON = 5
 
     # ------------------------------------
     #  SLOTS

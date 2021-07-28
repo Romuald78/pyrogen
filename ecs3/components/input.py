@@ -1,21 +1,6 @@
 from .component import Component
 
 
-class Buttons():
-
-    A      = 0
-    B      = 1
-    X      = 2
-    Y      = 3
-    LB     = 4
-    RB     = 5
-    VIEW   = 6
-    MENU   = 7
-    LSTICK = 8
-    RSTICK = 9
-
-
-
 # ============================================================
 # Storage of any action status
 # ============================================================
@@ -179,8 +164,8 @@ class MouseButton(LogicButton):
 
     __slots__ = []
 
-    def __init__(self, name="GamepadButton"):
-        super().__init__(Component.TYPE_PAD_BUTTON, name)
+    def __init__(self, name="MouseButton"):
+        super().__init__(Component.TYPE_MOUSE_BUTTON, name)
 
     def addButton(self, buttonID, actionName):
         ID = f"M-{buttonID}"

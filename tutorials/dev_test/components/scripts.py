@@ -68,12 +68,14 @@ class MoveSquare(Script):
 
 class ShowHide(Script):
 
-    def __init__(self, gfx, pad, name="ShowHide"):
+    def __init__(self, gfx, pad, mouse, name="ShowHide"):
         super().__init__(0, name)
-        self._gfx = gfx
-        self._pad = pad
+        self._gfx   = gfx
+        self._pad   = pad
+        self._mouse = mouse
 
     def updateScript(self, deltaTime, systemTime):
+        # Gamepad buttons
         if self._pad.hasBeenPressed("Hide"):
             self._gfx.hide()
         if self._pad.hasBeenPressed("Show"):
@@ -84,4 +86,11 @@ class ShowHide(Script):
         if self._pad.hasBeenPressed("Reduce"):
             scale = self._gfx.getScale()
             self._gfx.setScale(scale / 1.5)
+        # Mouse buttons
+        if self._mouse.isPressed("RotateLeft"):
+            angle = self._gfx.getAngle()
+            self._gfx.setAngle(angle - 15)
+        if self._mouse.isPressed("RotateRight"):
+            angle = self._gfx.getAngle()
+            self._gfx.setAngle(angle + 15)
 

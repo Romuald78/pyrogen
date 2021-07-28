@@ -1,7 +1,9 @@
 from ....ecs3.main.scene       import Scene
 from ....ecs3.main.entity      import Entity
+from ....ecs3.main.common      import Buttons, Gamepads
 from ....ecs3.components.gfx   import GfxSprite, GfxBox
-from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton, Buttons
+from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton
+
 from ..components.scripts import MoveCircle, MoveSquare, ShowHide
 
 import pyglet.window.key as keys
@@ -24,14 +26,18 @@ class FpsTest(Scene):
         mySprite.setZIndex(10000)
         mySprite.setScale(4)
         padButtons = GamepadButton()
-        padButtons.addButton(0, Buttons.A , "Hide")
-        padButtons.addButton(0, Buttons.B , "Show")
-        padButtons.addButton(0, Buttons.LB, "Enlarge")
-        padButtons.addButton(0, Buttons.RB, "Reduce")
-        scrShowHide = ShowHide(mySprite, padButtons)
+        padButtons.addButton(Gamepads.ANY, Buttons.A  , "Hide"   )
+        padButtons.addButton(Gamepads.ANY, Buttons.B  , "Show"   )
+        padButtons.addButton(Gamepads.ANY, Buttons.LB , "Enlarge")
+        padButtons.addButton(Gamepads.ANY, Buttons.RB , "Reduce" )
+        mouseButtons = MouseButton()
+        mouseButtons.addButton(Buttons.MOUSE_LEFT , "RotateLeft" )
+        mouseButtons.addButton(Buttons.MOUSE_RIGHT, "RotateRight")
+        scrShowHide = ShowHide(mySprite, padButtons, mouseButtons)
         # add components to entity
         mainCharacter.addComponent(mySprite)
         mainCharacter.addComponent(padButtons)
+        mainCharacter.addComponent(mouseButtons)
         mainCharacter.addComponent(scrShowHide)
         # add entity to scene
         self.addEntity(mainCharacter)
