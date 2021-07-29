@@ -1,11 +1,10 @@
 from ....ecs3.main.scene       import Scene
 from ....ecs3.main.entity      import Entity
-from ....ecs3.main.common      import Buttons, Gamepads
+from ....ecs3.main.common      import Buttons, Gamepads, Axis
 from ....ecs3.components.gfx   import GfxSprite, GfxBox
-from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton
-from ....ecs3.users.follow     import GfxFollowGfx
+from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton, GamepadAxis
 
-from ..components.scripts import MoveCircle, MoveSquare, ShowHide
+from ..components.scripts import MoveCircle, MoveSquare, ShowHide, MoveShip
 
 import pyglet.window.key as keys
 import random
@@ -16,14 +15,32 @@ class FpsTest(Scene):
     def __init__(self):
         super().__init__()
 
+        # ----------------------------------------------
+        # Ship entity
+        # ----------------------------------------------
+        ship = Entity()
         # Create components
         shipGfx = GfxSprite(f"ship001")
         shipGfx.setX(480)
         shipGfx.setY(540)
         shipGfx.setZIndex(20000)
-        shipGfx.setScale(0.5)
+        shipGfx.setScale(1.0)
+        axis = GamepadAxis(0.1)
+        axis.addAxis(Gamepads.ANY, Axis.LX, "moveX")
+        axis.addAxis(Gamepads.ANY, Axis.LY, "moveY")
+        axis.addAxis(Gamepads.ANY, Axis.RX, "moveX")
+        axis.addAxis(Gamepads.ANY, Axis.RY, "moveY")
+        moveShip = MoveShip(shipGfx, axis)
+        # add components to entity
+        ship.addComponent(shipGfx)
+        ship.addComponent(axis)
+        ship.addComponent(moveShip)
+        # Add ship to scene
+        self.addEntity(ship)
 
+        # ----------------------------------------------
         # Main Sprite
+        # ----------------------------------------------
         mainCharacter = Entity()
         # Create components
         mySprite = GfxSprite(f"characters_0")
@@ -41,22 +58,17 @@ class FpsTest(Scene):
         mouseButtons.addButton(Buttons.MOUSE_RIGHT, "RotateRight")
         scrShowHide = ShowHide(mySprite, padButtons, mouseButtons)
         scrShowHide.setPriority(10)
-
-        follow = GfxFollowGfx(mySprite, shipGfx, setAngle=True)
-        follow.setPriority(10000)
-
         # add components to entity
         mainCharacter.addComponent(mySprite)
-        mainCharacter.addComponent(shipGfx)
         mainCharacter.addComponent(padButtons)
         mainCharacter.addComponent(mouseButtons)
         mainCharacter.addComponent(scrShowHide)
-        mainCharacter.addComponent(follow)
-
         # add entity to scene
         self.addEntity(mainCharacter)
 
-        # Prepare number of Gfx components
+        # ----------------------------------------------
+        # Other Gfx components
+        # ----------------------------------------------
         NX = 70
         NY = 35
         N = NX * NY

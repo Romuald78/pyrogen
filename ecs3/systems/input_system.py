@@ -1,5 +1,5 @@
 from .base_system  import BaseSystem
-from ..main.common import Buttons, Gamepads
+from ..main.common import Buttons, Gamepads, Axis
 
 
 class KeyboardSystem(BaseSystem):
@@ -14,7 +14,8 @@ class KeyboardSystem(BaseSystem):
             c.notifyEvent(ID, isPressed, modifiers)
         #print(f"\n\n\nnotified {len(self._compByRef)} input components\n\n\n")
 
-class GamepadSystem(BaseSystem):
+
+class GamepadButtonSystem(BaseSystem):
 
     def __init__(self):
         super().__init__()
@@ -36,8 +37,33 @@ class GamepadSystem(BaseSystem):
             ID = f"G-{Gamepads.ANY}-{Buttons.ANY}"
             c.notifyEvent(ID, isPressed)
 
+
+
+class GamepadAxisSystem(BaseSystem):
+
+    def __init__(self):
+        super().__init__()
+
     def gamepadAxisEvent(self, gamepadID, axisID, value):
-        print(f"Pad:{gamepadID} - button:{axisID} - value:{value}")
+        # print(f"Pad:{gamepadID} - button:{axisID} - value:{value}")
+        # Update all the Script components
+        for c in self._compByRef:
+            # Notify specific event
+            ID = f"A-{gamepadID}-{axisID}"
+            c.notifyEvent(ID, value)
+            # Notify any gamepad
+            ID = f"A-{Gamepads.ANY}-{axisID}"
+            c.notifyEvent(ID, value)
+            # Notify any axis
+            ID = f"A-{gamepadID}-{Axis.ANY}"
+            c.notifyEvent(ID, value)
+            # Notify any axis on any gamepad
+            ID = f"A-{Gamepads.ANY}-{Axis.ANY}"
+            c.notifyEvent(ID, value)
+            # Notify any axis on any gamepad
+
+
+
 
 class MouseSystem(BaseSystem):
 

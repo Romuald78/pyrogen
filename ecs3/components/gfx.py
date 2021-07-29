@@ -133,6 +133,16 @@ class Gfx(Component):
         self._data[4] = x
         self._data[5] = y
         self._writeToFS = True
+    def moveX(self, dx):
+        self._data[4] += dx
+        self._writeToFS = True
+    def moveY(self, dy):
+        self._data[5] += dy
+        self._writeToFS = True
+    def movePosition(self, dx, dy):
+        self._data[4] += dx
+        self._data[5] += dy
+        self._writeToFS = True
     def setTransform(self, x, y, ang):
         self._data[4] = x
         self._data[5] = y

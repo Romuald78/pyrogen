@@ -194,14 +194,14 @@ class GamepadAxis(Component):
                  "_dead",
                  ]
 
-    def __init__(self, name="GamepadAxis"):
+    def __init__(self, deadZone=0.2, name="GamepadAxis"):
         super().__init__(Component.TYPE_PAD_AXIS, name)
         # Contains the action names for each key id
         self._axis = {}
         # Contains the status for each action
         self._actions = {}
         # Dead zone value
-        self._dead = 0.2
+        self._dead = deadZone
 
     def addAxis(self, gamepadID, axisID, actionName):
         # Build ID

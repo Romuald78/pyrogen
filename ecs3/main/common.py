@@ -22,3 +22,12 @@ class Gamepads():
 
     ANY = -1
 
+class Axis():
+
+    ANY = -1
+    LX = "x"
+    LY = "y"
+    RX = "rx"
+    RY = "ry"
+    Z  = "z"
+

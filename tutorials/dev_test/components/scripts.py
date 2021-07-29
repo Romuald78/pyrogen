@@ -94,3 +94,21 @@ class ShowHide(Script):
             angle = self._gfx.getAngle()
             self._gfx.setAngle(angle + 15)
 
+
+class MoveShip(Script):
+
+    def __init__(self, gfx, axis, name="MoveShip"):
+        super().__init__(0, name)
+        self._gfx  = gfx
+        self._axis = axis
+
+    def updateScript(self, deltaTime, systemTime):
+        # Compute and set angle
+        x = self._axis.getAnalogValue("moveX")
+        y = self._axis.getAnalogValue("moveY")
+        ang = math.atan2(y,x)*180.0/math.pi
+        self._gfx.setAngle(ang+90)
+        # update position
+        x *= 10
+        y *= 10
+        self._gfx.movePosition(x,y)

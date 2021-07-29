@@ -1,7 +1,7 @@
 from ..components.component  import Component
 from ..systems.gfx_system    import GfxSystem
 from ..systems.script_system import ScriptSystem
-from ..systems.input_system import KeyboardSystem, GamepadSystem, MouseSystem
+from ..systems.input_system import KeyboardSystem, GamepadButtonSystem, GamepadAxisSystem, MouseSystem
 
 
 class World():
@@ -9,13 +9,14 @@ class World():
     # Constructor
     def __init__(self):
         # GFX
-        self._gfxSys   = GfxSystem()
+        self._gfxSys     = GfxSystem()
         # SCRIPT
-        self._scrSys   = ScriptSystem()
+        self._scrSys     = ScriptSystem()
         # INPUT
-        self._keySys   = KeyboardSystem()
-        self._padSys   = GamepadSystem()
-        self._mouseSys = MouseSystem()
+        self._keySys     = KeyboardSystem()
+        self._padButtSys = GamepadButtonSystem()
+        self._padAxisSys = GamepadAxisSystem()
+        self._mouseSys   = MouseSystem()
 
 
     # Application process
@@ -38,7 +39,9 @@ class World():
         elif type== Component.TYPE_KEY:
             self._keySys.addComponent(ref)
         elif type == Component.TYPE_PAD_BUTTON:
-            self._padSys.addComponent(ref)
+            self._padButtSys.addComponent(ref)
+        elif type == Component.TYPE_PAD_AXIS:
+            self._padAxisSys.addComponent(ref)
         elif type == Component.TYPE_MOUSE_BUTTON:
             self._mouseSys.addComponent(ref)
         else:
@@ -77,8 +80,8 @@ class World():
         pass
 
     def gamepadButtonEvent(self, gamepadID, buttonID, isPressed):
-        self._padSys.gamepadButtonEvent(gamepadID, buttonID, isPressed)
+        self._padButtSys.gamepadButtonEvent(gamepadID, buttonID, isPressed)
 
     def gamepadAxisEvent(self, gamepadID, axisID, analogValue):
-        self._padSys.gamepadAxisEvent(gamepadID, axisID, analogValue)
+        self._padAxisSys.gamepadAxisEvent(gamepadID, axisID, analogValue)
 
