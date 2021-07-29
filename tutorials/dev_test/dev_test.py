@@ -27,6 +27,8 @@ def main():
     # -----------------------------------------------------------
     # Add football image
     app.addImage("ball", f"{rootDir}/resources/images/ball.png")
+    # Add space ship
+    app.addImage("ship001", f"{rootDir}/resources/images/ship001.png")
     # Add misc. sprites
     mini = 1
     maxi = 22

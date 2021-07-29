@@ -7,6 +7,8 @@ class Component():
     TYPE_KEY          = 3
     TYPE_PAD_BUTTON   = 4
     TYPE_MOUSE_BUTTON = 5
+    TYPE_PAD_AXIS     = 6
+
 
     # ------------------------------------
     #  SLOTS

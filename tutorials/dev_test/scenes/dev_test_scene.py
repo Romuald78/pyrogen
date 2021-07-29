@@ -3,12 +3,11 @@ from ....ecs3.main.entity      import Entity
 from ....ecs3.main.common      import Buttons, Gamepads
 from ....ecs3.components.gfx   import GfxSprite, GfxBox
 from ....ecs3.components.input import Keyboard, GamepadButton, MouseButton
+from ....ecs3.users.follow     import GfxFollowGfx
 
 from ..components.scripts import MoveCircle, MoveSquare, ShowHide
 
 import pyglet.window.key as keys
-
-
 import random
 
 
@@ -16,6 +15,13 @@ class FpsTest(Scene):
 
     def __init__(self):
         super().__init__()
+
+        # Create components
+        shipGfx = GfxSprite(f"ship001")
+        shipGfx.setX(480)
+        shipGfx.setY(540)
+        shipGfx.setZIndex(20000)
+        shipGfx.setScale(0.5)
 
         # Main Sprite
         mainCharacter = Entity()
@@ -34,11 +40,19 @@ class FpsTest(Scene):
         mouseButtons.addButton(Buttons.MOUSE_LEFT , "RotateLeft" )
         mouseButtons.addButton(Buttons.MOUSE_RIGHT, "RotateRight")
         scrShowHide = ShowHide(mySprite, padButtons, mouseButtons)
+        scrShowHide.setPriority(10)
+
+        follow = GfxFollowGfx(mySprite, shipGfx, setAngle=True)
+        follow.setPriority(10000)
+
         # add components to entity
         mainCharacter.addComponent(mySprite)
+        mainCharacter.addComponent(shipGfx)
         mainCharacter.addComponent(padButtons)
         mainCharacter.addComponent(mouseButtons)
         mainCharacter.addComponent(scrShowHide)
+        mainCharacter.addComponent(follow)
+
         # add entity to scene
         self.addEntity(mainCharacter)
 

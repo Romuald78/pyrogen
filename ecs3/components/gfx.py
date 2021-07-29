@@ -329,7 +329,7 @@ class GfxSprite(Gfx):
         textureID = texture["id"]
         w         = texture["w"]
         h         = texture["h"]
-        print(f"Load GfxSprite : {textureID}-{textureName}-?-?-{w}-{h}")
+        # print(f"Load GfxSprite : {textureID}-{textureName}-?-?-{w}-{h}")
         # if width or height is not filled, use the texture dimensions
         if width > 0:
             w = width
@@ -355,7 +355,7 @@ class GfxSprite(Gfx):
                          dataSize=NB_VALUES,
                          gfxType=Gfx.TYPE_SPRITE,
                          blockID=self._blockID,
-                         name=name)
+                         name=name+'_'+textureName)
 
         # Store specific information for this Sprite
         self.setTextureID(textureID)

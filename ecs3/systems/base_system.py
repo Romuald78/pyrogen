@@ -38,6 +38,10 @@ class BaseSystem():
         self._compByRef  = []
 
     def addComponent(self, ref):
+        name = ref.getName()
+        if "ollow" in name or "how" in name:
+            print("insert "+name)
+
         if ref in self._compByRef:
             raise RuntimeError(f"[ERROR] cannot add the component {ref} twice in system {self} !")
         if len(self._compByRef) == 0:

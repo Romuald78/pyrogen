@@ -175,3 +175,64 @@ class MouseButton(LogicButton):
         # TODO
         pass
 
+
+
+
+
+
+
+
+
+
+# ============================================================
+# Management of a logic input
+# ============================================================
+class GamepadAxis(Component):
+
+    __slots__ = ["_axis",
+                 "_actions",
+                 "_dead",
+                 ]
+
+    def __init__(self, name="GamepadAxis"):
+        super().__init__(Component.TYPE_PAD_AXIS, name)
+        # Contains the action names for each key id
+        self._axis = {}
+        # Contains the status for each action
+        self._actions = {}
+        # Dead zone value
+        self._dead = 0.2
+
+    def addAxis(self, gamepadID, axisID, actionName):
+        # Build ID
+        ID = f"A-{gamepadID}-{axisID}"
+        # Create action if not already present
+        if actionName not in self._actions:
+            self._actions[actionName] = 0.0
+        # Add ID
+        if ID not in self._axis:
+            self._axis[ID] = []
+        # Add key-action if needed
+        if actionName not in self._axis[ID]:
+            self._axis[ID].append(actionName)
+
+    def removeAction(self, gamepadID, axisID, actionName):
+        # TODO
+        pass
+
+    def notifyEvent(self, ID, analogValue):
+        # Saturate value
+        if abs(analogValue) < self._dead:
+            analogValue = 0.0
+        if ID in self._axis:
+            names = self._axis[ID]
+            for name in names:
+                self._actions[name] = analogValue
+
+    def getAnalogValue(self, actionName):
+        res = 0.0
+        if actionName in self._actions:
+            res = self._actions[actionName]
+        return res
+
+

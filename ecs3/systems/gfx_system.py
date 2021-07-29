@@ -11,12 +11,15 @@ class GfxSystem():
 
     # Recursive Dichotomy method to add the component at the correct place (sorted by Z)
     def _addComponent(self, ref, left, right):
+        # We reached the end of the dichotomy process
+        if right - left == -1:
+            # We went too far, take the "left" index
+            right = left
         # Compute middle index
         mid = (left + right) // 2
         # Get index
         curZ = self._compByRef[mid].getZIndex()
         newZ = ref.getZIndex()
-        # We reached the end of the dichotomy process
         if left == right:
             if newZ > curZ:
                 left += 1
@@ -46,7 +49,7 @@ class GfxSystem():
         self._compByRef  = []
 
     def addComponent(self, ref):
-        # print(f"----------> Z = {ref.getZIndex()}")
+        #print(f"Adding {ref.getName()} @ Z={ref.getZIndex()} ...")
         if ref in self._compByRef:
             raise RuntimeError(f"[ERROR] cannot add the Gfx {ref} twice !")
         if len(self._compByRef) == 0:

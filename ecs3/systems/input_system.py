@@ -36,6 +36,8 @@ class GamepadSystem(BaseSystem):
             ID = f"G-{Gamepads.ANY}-{Buttons.ANY}"
             c.notifyEvent(ID, isPressed)
 
+    def gamepadAxisEvent(self, gamepadID, axisID, value):
+        print(f"Pad:{gamepadID} - button:{axisID} - value:{value}")
 
 class MouseSystem(BaseSystem):
 
@@ -51,4 +53,5 @@ class MouseSystem(BaseSystem):
             # Notify for any button
             ID = f"M-{Buttons.ANY}"
             c.notifyEvent(ID, isPressed, modifiers, x, y)
+
 

@@ -80,6 +80,5 @@ class World():
         self._padSys.gamepadButtonEvent(gamepadID, buttonID, isPressed)
 
     def gamepadAxisEvent(self, gamepadID, axisID, analogValue):
-        # TODO
-        pass
+        self._padSys.gamepadAxisEvent(gamepadID, axisID, analogValue)
 

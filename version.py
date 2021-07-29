@@ -1,3 +1,3 @@
 # Version of the pyrogen package
 # Used both in the code AND in the setuptools config file 
-__version__ = "0.4.5"
+__version__ = "0.4.5.dev0"
